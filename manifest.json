@@ -1,0 +1,83 @@
+{
+  "name": "Hello AI 无障碍辅助",
+  "short_name": "Hello AI",
+  "description": "为残障人士提供基于摄像头的智能辅助工具",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "background_color": "#1a1a1a",
+  "theme_color": "#c8a45c",
+  "categories": ["accessibility", "utilities", "lifestyle"],
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/bg_hero.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Hello AI 无障碍辅助 - 主页"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "听障辅助",
+      "short_name": "听障",
+      "description": "实时手势识别与手语翻译",
+      "url": "./index.html?mode=deaf",
+      "icons": [
+        {
+          "src": "assets/icon.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "视障辅助",
+      "short_name": "视障",
+      "description": "基于摄像头的环境感知与语音引导",
+      "url": "./index.html?mode=blind",
+      "icons": [
+        {
+          "src": "assets/icon.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}

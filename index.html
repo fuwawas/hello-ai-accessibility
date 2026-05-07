@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+    <meta name="description" content="Hello AI 无障碍辅助 - 为残障人士提供基于摄像头的智能辅助工具，科技致善，让每个人都能平等地感受世界。">
+    <meta name="theme-color" content="#c8a45c">
+    <meta name="keywords" content="无障碍辅助,残障辅助,视障辅助,听障辅助,认知障碍,肢体障碍,老年辅助,手势识别,语音合成,AI辅助,PWA应用">
+    <link rel="canonical" href="https://hello-ai.netlify.app/">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Hello AI 无障碍辅助 - 科技致善">
+    <meta property="og:description" content="基于人工智能与摄像头技术，为视障、听障、认知障碍、肢体障碍人士以及老年群体提供温暖而有力的辅助工具。">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:site_name" content="Hello AI 无障碍辅助">
+    <meta property="og:image" content="assets/bg_hero.jpg">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Hello AI 无障碍辅助 - 科技致善">
+    <meta name="twitter:description" content="基于人工智能与摄像头技术，为残障人士提供温暖而有力的辅助工具。">
+    <meta name="twitter:image" content="assets/bg_hero.jpg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=yes">
+    <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+    <link rel="manifest" href="manifest.json">
+    <title>Hello AI 无障碍辅助 - 科技致善</title>
+
+    <!-- 样式文件 -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- MediaPipe Tasks Vision 通过动态 import 加载 -->
+</head>
+<body>
+    <!-- 骨架屏：首屏加载时显示 -->
+    <div id="app-skeleton" style="position:fixed;inset:0;background:#1a1a1a;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.5s;">
+      <div style="width:80px;height:80px;border-radius:50%;border:3px solid #333;border-top-color:#c8a45c;animation:spin 1s linear infinite;"></div>
+      <p style="color:#c8a45c;margin-top:20px;font-size:1.1rem;letter-spacing:2px;">Hello AI</p>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>
+
+    <!-- ========== 无障碍跳过导航链接 ========== -->
+    <a href="#main-content" class="skip-link">跳转到主要内容</a>
+
+    <!-- ========== 顶部导航栏 ========== -->
+    <header class="site-header" role="banner">
+        <div class="header-inner">
+            <div class="logo" aria-label="Hello AI 无障碍辅助">
+                <span class="logo-icon" aria-hidden="true">&#9672;</span>
+                <span class="logo-text">Hello AI</span>
+                <span class="logo-sub">无障碍辅助</span>
+            </div>
+            <nav class="header-nav" role="navigation" aria-label="快捷操作">
+                <button class="nav-btn" id="btn-speech-toggle" aria-label="切换语音播报" title="切换语音播报">
+                    <span aria-hidden="true">&#9835;</span>
+                    <span class="btn-label">语音</span>
+                </button>
+                <button class="nav-btn" id="btn-contrast-toggle" aria-label="切换高对比度模式" title="切换高对比度模式">
+                    <span aria-hidden="true">&#9788;</span>
+                    <span class="btn-label">对比度</span>
+                </button>
+                <button class="nav-btn" id="btn-font-toggle" aria-label="切换大字体模式" title="切换大字体模式">
+                    <span aria-hidden="true">A+</span>
+                    <span class="btn-label">字体</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ========== 主内容区域 ========== -->
+    <main id="main-content" role="main">
+
+        <!-- ===== 欢迎区域（莱卡风格人像背景）===== -->
+        <section class="hero-section" aria-label="欢迎区域">
+            <div class="hero-bg" aria-hidden="true">
+                <img src="assets/bg_hero.jpg" alt="" loading="eager" width="1280" height="720">
+            </div>
+            <div class="hero-overlay" aria-hidden="true"></div>
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    <span class="title-line">科技致善</span>
+                    <span class="title-accent">让每个人都能平等地感受世界</span>
+                </h1>
+                <p class="hero-desc">
+                    基于人工智能与摄像头技术，为视障、听障、认知障碍、肢体障碍人士<br>
+                    以及老年群体提供温暖而有力的辅助工具。<br>
+                    每一份关怀，都值得被看见。
+                </p>
+                <a href="#modes" class="hero-cta" aria-label="查看所有辅助模式">
+                    探索辅助模式
+                    <span aria-hidden="true">&#8595;</span>
+                </a>
+                <button class="voice-nav-btn" id="btn-voice-nav" aria-label="语音导航：说出模式名称直接进入">
+                    <span class="voice-nav-icon" aria-hidden="true">&#127908;</span>
+                    <span class="voice-nav-text">语音导航</span>
+                    <span class="voice-nav-hint">说出模式名称即可进入</span>
+                </button>
+                <div class="voice-nav-status" id="voice-nav-status" aria-live="polite"></div>
+            </div>
+        </section>
+
+        <!-- ===== 功能模式入口 ===== -->
+        <section id="modes" class="modes-section" aria-label="辅助模式选择">
+            <div class="section-header">
+                <h2 class="section-title">选择辅助模式</h2>
+                <p class="section-subtitle">请根据您的需求，选择最适合的辅助模式</p>
+            </div>
+
+            <div class="modes-grid" role="list">
+
+                <!-- 视障辅助 -->
+                <article class="mode-card" role="button" tabindex="0"
+                         data-mode="blind" aria-label="视障辅助模式：盲人语音引导">
+                    <div class="card-bg" aria-hidden="true">
+                        <img src="assets/bg_blind.jpg" alt="" loading="lazy">
+                    </div>
+                    <div class="card-overlay" aria-hidden="true"></div>
+                    <div class="card-content">
+                        <div class="card-icon" aria-hidden="true">&#128065;</div>
+                        <h3 class="card-title">视障辅助</h3>
+                        <p class="card-desc">基于摄像头的环境感知与语音引导，帮助视障人士安全出行、识别物体与文字。</p>
+                        <span class="card-action" aria-hidden="true">进入模式 &#8594;</span>
+                    </div>
+                </article>
+
+                <!-- 听障辅助 -->
+                <article class="mode-card" role="button" tabindex="0"
+                         data-mode="deaf" aria-label="听障辅助模式：手势识别转语音文字">
+                    <div class="card-bg" aria-hidden="true">
+                        <img src="assets/bg_deaf.jpg" alt="" loading="lazy">
+                    </div>
+                    <div class="card-overlay" aria-hidden="true"></div>
+                    <div class="card-content">
+                        <div class="card-icon" aria-hidden="true">&#129306;</div>
+                        <h3 class="card-title">听障辅助</h3>
+                        <p class="card-desc">实时手势识别与手语翻译，将手语转换为语音和文字，架起沟通的桥梁。</p>
+                        <span class="card-action" aria-hidden="true">进入模式 &#8594;</span>
+                    </div>
+                </article>
+
+                <!-- 认知障碍辅助 -->
+                <article class="mode-card" role="button" tabindex="0"
+                         data-mode="cognitive" aria-label="认知障碍辅助模式：简化界面">
+                    <div class="card-bg" aria-hidden="true">
+                        <img src="assets/bg_cognitive.jpg" alt="" loading="lazy">
+                    </div>
+                    <div class="card-overlay" aria-hidden="true"></div>
+                    <div class="card-content">
+                        <div class="card-icon" aria-hidden="true">&#129504;</div>
+                        <h3 class="card-title">认知障碍辅助</h3>
+                        <p class="card-desc">简化界面设计，清晰的视觉引导与步骤提示，让操作变得简单直观。</p>
+                        <span class="card-action" aria-hidden="true">进入模式 &#8594;</span>
+                    </div>
+                </article>
+
+                <!-- 肢体障碍辅助 -->
+                <article class="mode-card" role="button" tabindex="0"
+                         data-mode="physical" aria-label="肢体障碍辅助模式：语音控制">
+                    <div class="card-bg" aria-hidden="true">
+                        <img src="assets/bg_physical.jpg" alt="" loading="lazy">
+                    </div>
+                    <div class="card-overlay" aria-hidden="true"></div>
+                    <div class="card-content">
+                        <div class="card-icon" aria-hidden="true">&#129468;</div>
+                        <h3 class="card-title">肢体障碍辅助</h3>
+                        <p class="card-desc">语音控制与头部姿态识别，无需双手即可完成设备操作，释放更多可能。</p>
+                        <span class="card-action" aria-hidden="true">进入模式 &#8594;</span>
+                    </div>
+                </article>
+
+                <!-- 老年人辅助 -->
+                <article class="mode-card" role="button" tabindex="0"
+                         data-mode="elderly" aria-label="老年人辅助模式：大字体简化操作">
+                    <div class="card-bg" aria-hidden="true">
+                        <img src="assets/bg_elderly.jpg" alt="" loading="lazy">
+                    </div>
+                    <div class="card-overlay" aria-hidden="true"></div>
+                    <div class="card-content">
+                        <div class="card-icon" aria-hidden="true">&#128116;</div>
+                        <h3 class="card-title">老年人辅助</h3>
+                        <p class="card-desc">大字体、高对比度、简化操作流程，让科技不再有门槛，温暖每一位长者。</p>
+                        <span class="card-action" aria-hidden="true">进入模式 &#8594;</span>
+                    </div>
+                </article>
+
+                <!-- 声音修复 -->
+                <article class="mode-card" role="button" tabindex="0"
+                         data-mode="voice-repair" aria-label="声音修复模式：语音增强输出">
+                    <div class="card-bg" aria-hidden="true">
+                        <img src="assets/bg_settings.jpg" alt="" loading="lazy">
+                    </div>
+                    <div class="card-overlay" aria-hidden="true"></div>
+                    <div class="card-content">
+                        <div class="card-icon" aria-hidden="true">&#127908;</div>
+                        <h3 class="card-title">声音修复</h3>
+                        <p class="card-desc">为声带损伤人群设计，将含糊语音转换为清晰声音，支持手动输入和常用短语。</p>
+                        <span class="card-action" aria-hidden="true">进入模式 &#8594;</span>
+                    </div>
+                </article>
+
+                <!-- 通用设置 -->
+                <article class="mode-card" role="button" tabindex="0"
+                         data-mode="settings" aria-label="通用设置：无障碍偏好设置">
+                    <div class="card-bg" aria-hidden="true">
+                        <img src="assets/bg_settings.jpg" alt="" loading="lazy">
+                    </div>
+                    <div class="card-overlay" aria-hidden="true"></div>
+                    <div class="card-content">
+                        <div class="card-icon" aria-hidden="true">&#9881;</div>
+                        <h3 class="card-title">通用设置</h3>
+                        <p class="card-desc">自定义无障碍偏好：字体大小、对比度、语音速度、语调等，打造专属体验。</p>
+                        <span class="card-action" aria-hidden="true">进入设置 &#8594;</span>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- ===== 模式工作区（动态加载）===== -->
+        <section id="workspace" class="workspace-section" aria-label="功能工作区" hidden>
+            <div class="workspace-header">
+                <button class="back-btn" id="btn-back" aria-label="返回主页">
+                    <span aria-hidden="true">&#8592;</span>
+                    返回
+                </button>
+                <h2 class="workspace-title" id="workspace-title"></h2>
+            </div>
+            <div class="workspace-body" id="workspace-body">
+                <!-- 摄像头视频容器 -->
+                <div class="camera-container" id="camera-container" hidden>
+                    <video id="camera-video" autoplay playsinline aria-label="摄像头画面"></video>
+                    <canvas id="camera-canvas" aria-hidden="true"></canvas>
+                </div>
+                <!-- 功能模块内容区 -->
+                <div class="module-content" id="module-content"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========== 页脚 ========== -->
+    <footer class="site-footer" role="contentinfo">
+        <div class="footer-inner">
+            <p class="footer-slogan">Hello AI 科技致善</p>
+            <p class="footer-credit">TRAE SOLO 挑战赛</p>
+            <p class="footer-note">以科技之力，传递人文关怀。每一个生命都值得被温柔以待。</p>
+        </div>
+    </footer>
+
+    <!-- ========== 通知提示 ========== -->
+    <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- ========== Cache Buster (auto-clear old SW & cache) ========== -->
+    <script>
+    (function() {
+        var CACHE_VERSION = 'v4';
+        var saved = localStorage.getItem('hello-ai-cache-ver');
+        if (saved !== CACHE_VERSION) {
+            localStorage.setItem('hello-ai-cache-ver', CACHE_VERSION);
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    regs.forEach(function(r) { r.unregister(); });
+                });
+            }
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    names.forEach(function(n) { caches.delete(n); });
+                });
+            }
+            location.reload(true);
+        }
+    })();
+    </script>
+
+    <!-- ========== 返回按钮独立处理（不依赖ES模块） ========== -->
+    <script>
+    (function() {
+        function goHome() {
+            var ws = document.getElementById('workspace');
+            var hero = document.querySelector('.hero-section');
+            var modes = document.querySelector('.modes-section');
+            var mc = document.getElementById('module-content');
+            var cc = document.getElementById('camera-container');
+            if (ws) ws.hidden = true;
+            if (hero) hero.style.display = '';
+            if (modes) modes.style.display = '';
+            if (mc) mc.innerHTML = '';
+            if (cc) cc.hidden = true;
+            var video = document.getElementById('camera-video');
+            if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(function(t) { t.stop(); });
+                video.srcObject = null;
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        // 直接绑定到按钮（捕获阶段，确保最先响应）
+        function bindBackBtn() {
+            var btn = document.getElementById('btn-back');
+            if (btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    goHome();
+                }, true);
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bindBackBtn);
+        } else {
+            bindBackBtn();
+        }
+        // 事件委托后备（捕获阶段）
+        document.addEventListener('click', function(e) {
+            var t = e.target;
+            while (t && t !== document) {
+                if (t.id === 'btn-back' || t.classList && (t.classList.contains('back-btn') || t.closest && t.closest('.module-back-home'))) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    goHome();
+                    return;
+                }
+                t = t.parentNode;
+            }
+        }, true);
+        // ESC键返回
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var ws = document.getElementById('workspace');
+                if (ws && !ws.hidden) goHome();
+            }
+        });
+        window.goHome = goHome;
+    })();
+    </script>
+
+    <!-- ========== 语音导航独立处理（不依赖ES模块） ========== -->
+    <script>
+    (function() {
+        var modeMap = {
+            '视障': 'blind', '盲人': 'blind', '看不见': 'blind',
+            '听障': 'deaf', '聋人': 'deaf', '手语': 'deaf', '手势': 'deaf',
+            '认知': 'cognitive', '记忆': 'cognitive', '引导': 'cognitive',
+            '肢体': 'physical', '语音控制': 'physical',
+            '老年': 'elderly', '老人': 'elderly', '长辈': 'elderly',
+            '声音': 'voice-repair', '说话': 'voice-repair', '嗓子': 'voice-repair', '声带': 'voice-repair', '修复': 'voice-repair',
+            '设置': 'settings', '偏好': 'settings'
+        };
+
+        function initVoiceNav() {
+            var btn = document.getElementById('btn-voice-nav');
+            var status = document.getElementById('voice-nav-status');
+            if (!btn) return;
+
+            var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) {
+                btn.style.display = 'none';
+                return;
+            }
+
+            var recognition = null;
+            var isListening = false;
+
+            try {
+                recognition = new SR();
+                recognition.lang = 'zh-CN';
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                // 保存到 btn 元素上，供 speakTextAndResume 访问
+                btn._recognition = recognition;
+
+                recognition.onresult = function(ev) {
+                    // 防止回声：TTS 播报期间及结束后 1.5 秒内忽略识别结果
+                    var now = Date.now();
+                    if (window.speechSynthesis && window.speechSynthesis.speaking) return;
+                    if ((now - _ttsFinishedAt) < 1500) return;
+                    var transcript = '';
+                    for (var i = 0; i < ev.results.length; i++) transcript += ev.results[i][0].transcript;
+                    if (status) status.textContent = '识别到: ' + transcript;
+                    if (ev.results[ev.results.length - 1].isFinal) {
+                        var matchedMode = matchVoiceCommand(transcript);
+                        if (matchedMode) {
+                            var card = document.querySelector('[data-mode="' + matchedMode + '"]');
+                            if (card) {
+                                speakTextAndResume('正在进入', function() { card.click(); });
+                            }
+                        } else {
+                            speakTextAndResume('没有听清，请再说一次', function() {
+                                // 播报结束后重新启动识别
+                                setTimeout(function() {
+                                    try { recognition.start(); isListening = true; btn.classList.add('listening'); if (status) status.textContent = '正在聆听...请说出模式名称'; } catch(e) {}
+                                }, 1200);
+                            });
+                            if (status) status.textContent = '未匹配到模式，请重试';
+                        }
+                    }
+                };
+                recognition.onerror = function(ev) {
+                    isListening = false;
+                    btn.classList.remove('listening');
+                    if (status) status.textContent = '识别出错: ' + ev.error;
+                };
+                recognition.onend = function() {
+                    // 如果正在播报或刚结束播报，不更新状态
+                    var now = Date.now();
+                    if (window.speechSynthesis && window.speechSynthesis.speaking) return;
+                    if ((now - _ttsFinishedAt) < 1500) return;
+                    isListening = false;
+                    btn.classList.remove('listening');
+                };
+            } catch (e) {
+                console.warn('[语音导航] 初始化失败:', e);
+                btn.style.display = 'none';
+                return;
+            }
+
+            btn.addEventListener('click', function() {
+                if (isListening) {
+                    try { recognition.stop(); } catch(e) {}
+                    isListening = false;
+                    btn.classList.remove('listening');
+                    if (status) status.textContent = '';
+                } else {
+                    // 先播报提示，播报结束后再启动识别（防止回声）
+                    if (status) status.textContent = '正在准备...';
+                    btn.classList.add('listening');
+                    speakTextAndResume('请说出您想进入的模式', function() {
+                        setTimeout(function() {
+                            try {
+                                recognition.start();
+                                isListening = true;
+                                if (status) status.textContent = '正在聆听...请说出模式名称';
+                            } catch (e) {
+                                btn.classList.remove('listening');
+                                if (status) status.textContent = '无法启动语音识别';
+                            }
+                        }, 1200);
+                    });
+                }
+            });
+        }
+
+        function matchVoiceCommand(transcript) {
+            var text = transcript.replace(/\s/g, '');
+            for (var keyword in modeMap) {
+                if (modeMap.hasOwnProperty(keyword) && text.indexOf(keyword) !== -1) {
+                    return modeMap[keyword];
+                }
+            }
+            return null;
+        }
+
+        function speakText(text) {
+            try {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    var utter = new SpeechSynthesisUtterance(text);
+                    utter.lang = 'zh-CN';
+                    utter.rate = 1.0;
+                    window.speechSynthesis.speak(utter);
+                }
+            } catch (e) {}
+        }
+
+        // TTS 结束时间戳，用于回声过滤
+        var _ttsFinishedAt = 0;
+
+        // 防止回声的播报函数：播报时暂停语音识别，播报结束后恢复
+        function speakTextAndResume(text, callback) {
+            try {
+                if ('speechSynthesis' in window) {
+                    // 暂停语音识别
+                    var btn = document.getElementById('btn-voice-nav');
+                    var recognition = btn ? btn._recognition : null;
+                    if (recognition) {
+                        try { recognition.stop(); } catch(e) {}
+                    }
+
+                    window.speechSynthesis.cancel();
+                    var utter = new SpeechSynthesisUtterance(text);
+                    utter.lang = 'zh-CN';
+                    utter.rate = 1.0;
+                    utter.onend = function() {
+                        _ttsFinishedAt = Date.now();
+                        // 播报结束后执行回调（如点击卡片）
+                        if (callback) callback();
+                    };
+                    utter.onerror = function() {
+                        _ttsFinishedAt = Date.now();
+                        if (callback) callback();
+                    };
+                    window.speechSynthesis.speak(utter);
+                } else {
+                    if (callback) callback();
+                }
+            } catch (e) {
+                if (callback) callback();
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initVoiceNav);
+        } else {
+            initVoiceNav();
+        }
+    })();
+    </script>
+
+    <!-- ========== 应用脚本 ========== -->
+    <script type="module" src="js/app.js"></script>
+
+    <!-- ========== PWA Service Worker 注册 ========== -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('[PWA] Service Worker 注册成功'))
+                .catch(err => console.warn('[PWA] Service Worker 注册失败:', err));
+        });
+    }
+    </script>
+</body>
+</html>

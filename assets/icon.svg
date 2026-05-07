@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d4b36a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#b8923f;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- 圆形背景 -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGrad)" filter="url(#shadow)"/>
+
+  <!-- 内圈装饰 -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.3"/>
+
+  <!-- 无障碍符号（轮椅图标） -->
+  <g transform="translate(256, 248)" fill="#ffffff">
+    <!-- 头部 -->
+    <circle cx="30" cy="-100" r="28" fill="#ffffff"/>
+
+    <!-- 身体 -->
+    <path d="M 10,-68 L 10,-10 L 50,-10 L 50,10 L -30,10 L -30,-10 L -10,-10 L -10,-68 Z" fill="#ffffff"/>
+
+    <!-- 轮椅大轮 -->
+    <circle cx="-30" cy="60" r="55" fill="none" stroke="#ffffff" stroke-width="12"/>
+    <!-- 轮椅大轮辐条 -->
+    <line x1="-30" y1="5" x2="-30" y2="115" stroke="#ffffff" stroke-width="4"/>
+    <line x1="-85" y1="60" x2="25" y2="60" stroke="#ffffff" stroke-width="4"/>
+
+    <!-- 轮椅小轮 -->
+    <circle cx="50" cy="85" r="18" fill="none" stroke="#ffffff" stroke-width="8"/>
+
+    <!-- 腿部/脚踏板 -->
+    <path d="M 10,10 L 50,10 L 50,60" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- 底部文字 "AI" -->
+  <text x="256" y="430" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="bold" fill="#ffffff" letter-spacing="8">AI</text>
+</svg>

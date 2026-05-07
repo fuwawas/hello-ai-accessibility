@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello AI 无障碍辅助 - TRAE SOLO 挑战赛参赛作品</title>
+    <meta name="description" content="面向听障、视障、认知障碍、肢体障碍及老年群体的五合一无障碍辅助 PWA 应用">
+    <style>
+        /* 基础变量 */
+        :root {
+            --color-bg: #0f0f0f;
+            --color-bg-secondary: #1a1a1a;
+            --color-bg-tertiary: #242424;
+            --color-text: #f0ece4;
+            --color-text-secondary: #a09a8e;
+            --color-accent: #c8a45c;
+            --color-accent-hover: #dbb96e;
+            --color-accent-glow: rgba(200, 164, 92, 0.25);
+            --font-body: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            --font-display: Georgia, 'Noto Serif SC', STSong, serif;
+        }
+
+        /* 重置与基础 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* 头部 */
+        .header {
+            background: linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-tertiary));
+            padding: 80px 20px 60px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 50%, var(--color-accent-glow), transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 3rem;
+            color: var(--color-accent);
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, var(--color-accent), var(--color-accent-hover), var(--color-accent));
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s linear infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: var(--color-text-secondary);
+            margin-bottom: 30px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: var(--color-accent);
+            color: var(--color-bg);
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        /* 主体内容 */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        /* 概述部分 */
+        .overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 80px;
+        }
+
+        .overview-card {
+            background: var(--color-bg-secondary);
+            border-radius: 16px;
+            padding: 40px 30px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .overview-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .overview-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .overview-title {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            color: var(--color-accent);
+            margin-bottom: 15px;
+        }
+
+        .overview-desc {
+            color: var(--color-text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* 功能展示 */
+        .section {
+            margin-bottom: 80px;
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            color: var(--color-accent);
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background: var(--color-bg-secondary);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: scale(1.02);
+        }
+
+        .feature-header {
+            background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
+            padding: 30px;
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .feature-content {
+            padding: 30px;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--color-bg-tertiary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            color: var(--color-accent);
+            font-weight: bold;
+        }
+
+        /* 技术亮点 */
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+        }
+
+        .tech-card {
+            background: var(--color-bg-secondary);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tech-card:hover {
+            border-color: var(--color-accent);
+            box-shadow: 0 0 30px var(--color-accent-glow);
+        }
+
+        .tech-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+
+        .tech-title {
+            font-size: 1.2rem;
+            color: var(--color-accent);
+            margin-bottom: 10px;
+        }
+
+        .tech-desc {
+            color: var(--color-text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* 数据统计 */
+        .stats {
+            background: linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-tertiary));
+            border-radius: 20px;
+            padding: 60px 40px;
+            margin-bottom: 80px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+            text-align: center;
+        }
+
+        .stat-item {
+            padding: 20px;
+        }
+
+        .stat-number {
+            font-family: var(--font-display);
+            font-size: 3.5rem;
+            color: var(--color-accent);
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            color: var(--color-text-secondary);
+        }
+
+        /* 社会价值 */
+        .value-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .value-card {
+            background: var(--color-bg-secondary);
+            border-radius: 16px;
+            padding: 40px 30px;
+            border-left: 4px solid var(--color-accent);
+        }
+
+        .value-title {
+            font-size: 1.3rem;
+            color: var(--color-accent);
+            margin-bottom: 15px;
+        }
+
+        .value-desc {
+            color: var(--color-text-secondary);
+            line-height: 1.8;
+        }
+
+        /* CTA */
+        .cta {
+            text-align: center;
+            padding: 80px 20px;
+            background: linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-tertiary));
+            border-radius: 20px;
+            margin-bottom: 60px;
+        }
+
+        .cta-title {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            color: var(--color-accent);
+            margin-bottom: 20px;
+        }
+
+        .cta-desc {
+            font-size: 1.2rem;
+            color: var(--color-text-secondary);
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
+            color: var(--color-bg);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-accent-hover);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px var(--color-accent-glow);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--color-accent);
+            border: 2px solid var(--color-accent);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-accent);
+            color: var(--color-bg);
+            transform: translateY(-3px);
+        }
+
+        /* 页脚 */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--color-text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: var(--color-accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.2rem;
+            }
+
+            .subtitle {
+                font-size: 1.2rem;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+
+            .stat-number {
+                font-size: 2.5rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 60px 15px 40px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .btn-group {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部 -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">♿</div>
+            <h1>Hello AI 无障碍辅助</h1>
+            <p class="subtitle">科技致善 -- 让每个人都能平等地感受世界</p>
+            <span class="badge">TRAE SOLO 挑战赛 - 科技致善赛道</span>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="main">
+        <!-- 概述 -->
+        <section class="overview">
+            <div class="overview-card">
+                <div class="overview-icon">🎯</div>
+                <h3 class="overview-title">五合一设计</h3>
+                <p class="overview-desc">覆盖听障、视障、认知障碍、肢体障碍及老年群体，一个应用解决多种需求</p>
+            </div>
+            <div class="overview-card">
+                <div class="overview-icon">🌐</div>
+                <h3 class="overview-title">纯浏览器端</h3>
+                <p class="overview-desc">无需后端服务器，零部署成本，打开浏览器即可使用</p>
+            </div>
+            <div class="overview-card">
+                <div class="overview-icon">📱</div>
+                <h3 class="overview-title">PWA 离线可用</h3>
+                <p class="overview-desc">首次访问后可离线使用，网络差也能用，可安装到桌面</p>
+            </div>
+        </section>
+
+        <!-- 功能展示 -->
+        <section class="section">
+            <h2 class="section-title">核心功能</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">🗣️</div>
+                        <h3 class="feature-title">听障辅助</h3>
+                    </div>
+                    <div class="feature-content">
+                        <ul class="feature-list">
+                            <li>实时手势识别转语音文字</li>
+                            <li>32 种预置动态手势</li>
+                            <li>KNN 自定义手语训练</li>
+                            <li>手语输入模式</li>
+                            <li>vivo 数据接口预留</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">👁️</div>
+                        <h3 class="feature-title">视障辅助</h3>
+                    </div>
+                    <div class="feature-content">
+                        <ul class="feature-list">
+                            <li>实时环境感知</li>
+                            <li>障碍物检测与语音提醒</li>
+                            <li>颜色识别</li>
+                            <li>屏幕朗读</li>
+                            <li>紧急求助（GPS 定位）</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">🧠</div>
+                        <h3 class="feature-title">认知障碍辅助</h3>
+                    </div>
+                    <div class="feature-content">
+                        <ul class="feature-list">
+                            <li>6 种日常任务模板</li>
+                            <li>自定义工作流程</li>
+                            <li>语音引导</li>
+                            <li>大字体高对比度</li>
+                            <li>步骤化任务引导</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">🦿</div>
+                        <h3 class="feature-title">肢体障碍辅助</h3>
+                    </div>
+                    <div class="feature-content">
+                        <ul class="feature-list">
+                            <li>语音命令识别</li>
+                            <li>8 种语音命令</li>
+                            <li>免手动操作</li>
+                            <li>语音波形动画</li>
+                            <li>回声防止机制</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">👴</div>
+                        <h3 class="feature-title">老年人辅助</h3>
+                    </div>
+                    <div class="feature-content">
+                        <ul class="feature-list">
+                            <li>大按钮简化界面</li>
+                            <li>8 个快捷操作</li>
+                            <li>吃药提醒</li>
+                            <li>一键求助</li>
+                            <li>震动反馈</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">🔊</div>
+                        <h3 class="feature-title">声音修复</h3>
+                    </div>
+                    <div class="feature-content">
+                        <ul class="feature-list">
+                            <li>语音识别 + 清晰输出</li>
+                            <li>14 个常用短语</li>
+                            <li>语速/音调可调</li>
+                            <li>历史记录回放</li>
+                            <li>回声防止</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 技术亮点 -->
+        <section class="section">
+            <h2 class="section-title">技术亮点</h2>
+            <div class="tech-grid">
+                <div class="tech-card">
+                    <div class="tech-icon">🤖</div>
+                    <h3 class="tech-title">纯浏览器端 AI</h3>
+                    <p class="tech-desc">MediaPipe WASM 在浏览器中运行手势识别，无需后端服务器</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-icon">⚡</div>
+                    <h3 class="tech-title">零依赖架构</h3>
+                    <p class="tech-desc">纯原生 HTML/CSS/JS，无框架依赖，加载极快</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-icon">📦</div>
+                    <h3 class="tech-title">PWA 离线</h3>
+                    <p class="tech-desc">Service Worker 三级缓存策略，首次访问后可离线使用</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-icon">✋</div>
+                    <h3 class="tech-title">动态手势识别</h3>
+                    <p class="tech-desc">追踪 15 帧手势轨迹，32 种预置动态手势模板</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-icon">🎯</div>
+                    <h3 class="tech-title">KNN 自定义训练</h3>
+                    <p class="tech-desc">用户可训练自定义手语词汇，IndexedDB 持久化</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-icon">♿</div>
+                    <h3 class="tech-title">无障碍设计</h3>
+                    <p class="tech-desc">ARIA 标签、键盘操作、高对比度、大字体模式</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-icon">📱</div>
+                    <h3 class="tech-title">响应式设计</h3>
+                    <p class="tech-desc">三断点适配，手机端深度优化，安全区域适配</p>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-icon">🔒</div>
+                    <h3 class="tech-title">隐私保护</h3>
+                    <p class="tech-desc">所有数据本地处理，不上传服务器，保护用户隐私</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 数据统计 -->
+        <section class="stats">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number">10,000+</div>
+                    <div class="stat-label">代码行数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">5</div>
+                    <div class="stat-label">辅助模式</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">32</div>
+                    <div class="stat-label">预置手势</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">12</div>
+                    <div class="stat-label">JS 模块</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">服务器成本</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 社会价值 -->
+        <section class="section">
+            <h2 class="section-title">社会价值</h2>
+            <div class="value-grid">
+                <div class="value-card">
+                    <h3 class="value-title">解决真实痛点</h3>
+                    <p class="value-desc">听障人士可以用手语与健听人沟通，视障人士可以感知周围环境，认知障碍人士可以独立完成日常任务，肢体障碍人士可以用语音控制手机，老年人可以轻松使用智能设备。</p>
+                </div>
+                <div class="value-card">
+                    <h3 class="value-title">降低使用门槛</h3>
+                    <p class="value-desc">零成本：无需购买专业设备。零安装：浏览器即可使用。零学习：简洁直观的界面设计。让每个人都能平等享受科技带来的便利。</p>
+                </div>
+                <div class="value-card">
+                    <h3 class="value-title">技术普惠</h3>
+                    <p class="value-desc">纯前端技术，无需后端服务器。PWA 离线可用，网络差也能用。响应式设计，手机电脑都能用。让技术真正服务于人。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section class="cta">
+            <h2 class="cta-title">科技致善，让世界更美好</h2>
+            <p class="cta-desc">Hello AI 无障碍辅助是一个用技术传递温暖的项目，让残障人士和老年人也能平等地享受科技带来的便利。</p>
+            <div class="btn-group">
+                <a href="https://hello-ai.netlify.app/" class="btn btn-primary" target="_blank">在线体验</a>
+                <a href="https://hello-ai.netlify.app/landing/" class="btn btn-secondary" target="_blank">查看落地页</a>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <p>本作品由独立开发者使用 TRAE SOLO 全程开发完成</p>
+        <p style="margin-top: 10px;">
+            <a href="https://hello-ai.netlify.app/">在线演示</a> |
+            <a href="https://hello-ai.netlify.app/landing/">落地页</a> |
+            <a href="../docs/competition-materials.md">参赛材料</a>
+        </p>
+        <p style="margin-top: 20px; color: #666;">© 2026 Hello AI. 采用 MIT 许可证</p>
+    </footer>
+
+    <script>
+        // 数字递增动画
+        function animateNumbers() {
+            const numbers = document.querySelectorAll('.stat-number');
+            numbers.forEach(num => {
+                const target = parseInt(num.textContent.replace(/,/g, ''));
+                if (isNaN(target)) return;
+
+                let current = 0;
+                const increment = target / 50;
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (current >= target) {
+                        num.textContent = target.toLocaleString();
+                        clearInterval(timer);
+                    } else {
+                        num.textContent = Math.floor(current).toLocaleString();
+                    }
+                }, 30);
+            });
+        }
+
+        // 滚动动画
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+
+                    // 触发数字动画
+                    if (entry.target.classList.contains('stats')) {
+                        animateNumbers();
+                    }
+                }
+            });
+        }, { threshold: 0.1 });
+
+        // 观察所有需要动画的元素
+        document.querySelectorAll('.overview-card, .feature-card, .tech-card, .value-card, .stats, .cta').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
