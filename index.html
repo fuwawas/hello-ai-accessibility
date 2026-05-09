@@ -66,6 +66,11 @@
                     <span aria-hidden="true">A+</span>
                     <span class="btn-label">字体</span>
                 </button>
+                <!-- 用户登录按钮 -->
+                <button class="nav-btn user-btn" id="btn-user" aria-label="用户登录" title="用户登录/注册">
+                    <span aria-hidden="true">&#128100;</span>
+                    <span class="btn-label" id="user-btn-label">登录</span>
+                </button>
             </nav>
         </div>
     </header>
@@ -522,5 +527,96 @@
         });
     }
     </script>
+
+    <!-- ========== 登录/注册模态框 ========== -->
+    <div id="auth-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" style="display:none;">
+        <div class="modal-overlay" id="auth-modal-overlay"></div>
+        <div class="modal-content auth-modal-content">
+            <button class="modal-close" id="auth-modal-close" aria-label="关闭">&times;</button>
+
+            <!-- 登录表单 -->
+            <div id="login-form" class="auth-form">
+                <h2 id="auth-modal-title" class="auth-title">登录</h2>
+                <p class="auth-subtitle">登录后可同步设置和使用 AI 功能</p>
+
+                <div class="form-group">
+                    <label for="login-username">用户名</label>
+                    <input type="text" id="login-username" placeholder="请输入用户名" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">密码</label>
+                    <input type="password" id="login-password" placeholder="请输入密码" autocomplete="current-password" required>
+                </div>
+
+                <button class="auth-submit-btn" id="btn-login">登录</button>
+
+                <div class="auth-switch">
+                    还没有账号？<a href="#" id="show-register">立即注册</a>
+                </div>
+            </div>
+
+            <!-- 注册表单 -->
+            <div id="register-form" class="auth-form" style="display:none;">
+                <h2 class="auth-title">注册</h2>
+                <p class="auth-subtitle">创建账号，享受完整的无障碍辅助服务</p>
+
+                <div class="form-group">
+                    <label for="reg-username">用户名</label>
+                    <input type="text" id="reg-username" placeholder="3-20个字符" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">密码</label>
+                    <input type="password" id="reg-password" placeholder="至少6个字符" autocomplete="new-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-nickname">昵称</label>
+                    <input type="text" id="reg-nickname" placeholder="可选">
+                </div>
+                <div class="form-group">
+                    <label for="reg-disability">辅助类型</label>
+                    <select id="reg-disability">
+                        <option value="general">通用</option>
+                        <option value="blind">视障</option>
+                        <option value="deaf">听障</option>
+                        <option value="cognitive">认知障碍</option>
+                        <option value="physical">肢体障碍</option>
+                        <option value="elderly">老年用户</option>
+                    </select>
+                </div>
+
+                <button class="auth-submit-btn" id="btn-register">注册</button>
+
+                <div class="auth-switch">
+                    已有账号？<a href="#" id="show-login">去登录</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 用户菜单 ========== -->
+    <div id="user-menu" class="user-menu" style="display:none;">
+        <div class="user-menu-header">
+            <div class="user-avatar">&#128100;</div>
+            <div class="user-info">
+                <div class="user-name" id="menu-user-name">用户</div>
+                <div class="user-type" id="menu-user-type">通用模式</div>
+            </div>
+        </div>
+        <div class="user-menu-items">
+            <button class="user-menu-item" id="menu-sync-settings">
+                <span>&#128260;</span> 同步设置到云端
+            </button>
+            <button class="user-menu-item" id="menu-load-settings">
+                <span>&#128190;</span> 加载云端设置
+            </button>
+            <button class="user-menu-item" id="menu-stats">
+                <span>&#128200;</span> 使用统计
+            </button>
+            <hr>
+            <button class="user-menu-item" id="menu-logout">
+                <span>&#128682;</span> 退出登录
+            </button>
+        </div>
+    </div>
 </body>
 </html>

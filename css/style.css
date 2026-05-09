@@ -2802,3 +2802,278 @@ html {
     min-height: 1.5em;
     margin-top: var(--space-sm);
 }
+
+/* ========== 登录/注册模态框 ========== */
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md);
+}
+
+.modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    position: relative;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: var(--space-xl);
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-close {
+    position: absolute;
+    top: var(--space-md);
+    right: var(--space-md);
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+}
+
+.auth-title {
+    font-size: var(--fs-xl);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-xs);
+}
+
+.auth-subtitle {
+    color: var(--color-text-muted);
+    font-size: var(--fs-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.form-group {
+    margin-bottom: var(--space-md);
+}
+
+.form-group label {
+    display: block;
+    color: var(--color-text-secondary);
+    font-size: var(--fs-sm);
+    margin-bottom: var(--space-xs);
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text-primary);
+    font-size: var(--fs-base);
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-glow);
+}
+
+.form-group input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.auth-submit-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--color-accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: var(--space-sm);
+}
+
+.auth-submit-btn:hover {
+    background: var(--color-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--color-accent-glow);
+}
+
+.auth-submit-btn:active {
+    transform: translateY(0);
+}
+
+.auth-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: var(--space-lg);
+    color: var(--color-text-muted);
+    font-size: var(--fs-sm);
+}
+
+.auth-switch a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-switch a:hover {
+    text-decoration: underline;
+}
+
+/* ========== 用户按钮 ========== */
+.user-btn {
+    position: relative;
+}
+
+.user-btn.logged-in {
+    background: var(--color-accent-glow);
+}
+
+.user-btn.logged-in .btn-label {
+    color: var(--color-accent);
+}
+
+/* ========== 用户菜单 ========== */
+.user-menu {
+    position: fixed;
+    top: 60px;
+    right: var(--space-md);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: var(--space-sm);
+    min-width: 220px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    z-index: 999;
+    animation: menuSlideIn 0.2s ease-out;
+}
+
+@keyframes menuSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.user-menu-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: var(--space-xs);
+}
+
+.user-avatar {
+    font-size: 2rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface);
+    border-radius: 50%;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-name {
+    color: var(--color-text-primary);
+    font-weight: 600;
+}
+
+.user-type {
+    color: var(--color-text-muted);
+    font-size: var(--fs-xs);
+}
+
+.user-menu-items {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: var(--fs-sm);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-align: left;
+}
+
+.user-menu-item:hover {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+}
+
+.user-menu-items hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: var(--space-xs) 0;
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 480px) {
+    .modal-content {
+        padding: var(--space-lg);
+    }
+
+    .user-menu {
+        right: var(--space-sm);
+        left: var(--space-sm);
+        min-width: auto;
+    }
+}

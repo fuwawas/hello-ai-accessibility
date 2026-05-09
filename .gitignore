@@ -1,6 +1,9 @@
 node_modules/
+server/data/
 .DS_Store
 Thumbs.db
 *.log
 .env
+*.db
+*.sqlite
 .claude/

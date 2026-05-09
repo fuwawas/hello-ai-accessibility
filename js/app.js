@@ -36,6 +36,8 @@ import { ToastManager } from './managers/toast.js';
 import { SettingsManager } from './managers/settings.js';
 import { SpeechManager } from './managers/speech.js';
 import { CameraManager } from './managers/camera.js';
+import { AuthManager } from './managers/auth.js';
+import { apiClient } from './utils/api-client.js';
 
 /* ============================================================
    辅助模式模块导入
@@ -148,6 +150,7 @@ class AccessibilityApp {
         this.settings = new SettingsManager();
         this.camera = new CameraManager(this);
         this.moduleLoader = new ModuleLoader();
+        this.auth = new AuthManager(this.toast);
 
         // 当前状态
         this.currentMode = null;
@@ -232,6 +235,12 @@ class AccessibilityApp {
 
             // 绑定事件
             this._bindEvents();
+
+            // 初始化认证管理器
+            this.auth.init();
+            this.auth.onAuthChange = (type) => {
+                console.log('[Hello AI] 认证状态变化:', type);
+            };
 
             // 初始化 PWA 安装提示
             this._initPWAInstallPrompt();
