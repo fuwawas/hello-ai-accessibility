@@ -1018,6 +1018,7 @@ class AccessibilityApp {
                 ctx.app.speech.speak(`${greeting}！今天是${dateStr}。有什么我可以帮您的吗？`, { rate: 0.8 });
             },
             destroy: async (ctx) => {
+                ctx.app._elderlyStopMusic();
                 // 保留大字体设置
             }
         });

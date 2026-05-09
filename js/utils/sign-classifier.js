@@ -3,6 +3,7 @@
  */
 import { FeatureExtractor } from './feature-extractor.js';
 import { DataAdapter } from './data-adapter.js';
+import { generateAllPresetData } from '../data/preset-sign-data.js';
 
 class SignLanguageClassifier {
     constructor() {
@@ -39,21 +40,24 @@ class SignLanguageClassifier {
     }
 
     /**
-     * 预置中国手语常用词汇（基于特征描述）
+     * 预置中国手语常用词汇训练数据
      */
     _loadPresetVocabulary() {
-        // 预置词汇使用标记，实际识别时通过 MediaPipe Gesture Recognizer + 自定义算法
-        // 这里存储的是标签列表，用于 UI 显示
-        this.presetLabels = [
-            '你好', '谢谢', '对不起', '没关系', '再见',
-            '是', '不是', '好', '不好', '请',
-            '帮忙', '吃饭', '喝水', '厕所',
-            '家', '医院', '电话', '钱', '名字',
-            '我', '你', '他', '我们', '什么',
-            '哪里', '什么时候', '多少', '不要', '想要',
-            '开心', '难过', '生气', '害怕', '喜欢'
-        ];
-        console.log(`[手语分类器] 已加载 ${this.presetLabels.length} 个预置词汇标签`);
+        const presetSamples = generateAllPresetData();
+
+        for (const sample of presetSamples) {
+            const feature = this.featureExtractor.extractDual(sample.landmarks);
+            if (feature) {
+                this.samples.push({ features: feature, label: sample.label });
+            }
+        }
+
+        const labelCounts = {};
+        for (const s of this.samples) {
+            labelCounts[s.label] = (labelCounts[s.label] || 0) + 1;
+        }
+        this.presetLabels = Object.keys(labelCounts);
+        console.log(`[手语分类器] 已加载 ${this.samples.length} 个预置样本，覆盖 ${this.presetLabels.length} 个词汇`);
     }
 
     /**

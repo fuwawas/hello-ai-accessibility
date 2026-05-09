@@ -63,8 +63,8 @@ export const deafMethods = {
 
             const now = performance.now();
 
-            // 每100ms检测一次（降低手机CPU压力），且视频必须就绪
-            if (video.readyState >= 2 && now - lastDetectTime > 100) {
+            // 每80ms检测一次（实时模式），且视频必须就绪
+            if (video.readyState >= 2 && now - lastDetectTime > 80) {
                 lastDetectTime = now;
                 frameCount++;
 
@@ -287,8 +287,8 @@ export const deafMethods = {
             let gestureName = gesture.categoryName;
             score = gesture.score;
 
-            // 标准手势置信度太低则忽略（避免误识别为 Open_Palm 等）
-            if (score < 0.6) {
+            // 标准手势置信度阈值（实时模式降低阈值）
+            if (score < 0.45) {
                 gestureName = 'None';
             }
 
@@ -351,21 +351,16 @@ export const deafMethods = {
         }
         if (statusText) statusText.textContent = `识别到: ${chineseName}`;
 
-        // 稳定性检测（缓冲区缩小到 5 帧，更快响应）
+        // 实时模式：1帧即触发，300ms冷却，连续输出
         this._gestureBuffer.push(chineseName);
-        if (this._gestureBuffer.length > 5) this._gestureBuffer.shift();
+        if (this._gestureBuffer.length > 3) this._gestureBuffer.shift();
 
-        // 统计时排除"未知"帧
-        const meaningfulFrames = this._gestureBuffer.filter(g => g !== '__none__');
-        const sameCount = meaningfulFrames.filter(g => g === chineseName).length;
-
-        // 冷却 1.5 秒（更快速的实时反馈）
         const now = Date.now();
+        // 同一手势300ms冷却，不同手势立即触发
         const isCooldownOver = chineseName !== this._gestureStableGesture ||
-                                (now - (this._gestureLastTriggerTime || 0)) > 1500;
+                                (now - (this._gestureLastTriggerTime || 0)) > 300;
 
-        // 需 2 帧稳定触发（减少误触发）
-        if (sameCount >= 2 && isCooldownOver) {
+        if (isCooldownOver) {
             this._gestureStableGesture = chineseName;
             this._gestureLastTriggerTime = now;
 
@@ -373,12 +368,12 @@ export const deafMethods = {
                 if (gestureRecognized) {
                     gestureRecognized.style.animation = 'none';
                     gestureRecognized.offsetHeight;
-                    gestureRecognized.style.animation = 'fadeInUp 0.3s ease-out';
+                    gestureRecognized.style.animation = 'fadeInUp 0.15s ease-out';
                 }
                 this._deafAddToHistory(chineseName);
                 // 实时语音输出
                 this.speech.speak(chineseName);
-                if (navigator.vibrate) navigator.vibrate(100);
+                if (navigator.vibrate) navigator.vibrate(50);
                 // 手语句子组合
                 this._processSignLanguageResult(chineseName, score);
             } else if (mode === 'blind') {
@@ -527,7 +522,6 @@ export const deafMethods = {
      * 手语识别结果处理（在 _onGestureResults 中调用）
      */
     _processSignLanguageResult(chineseName, confidence) {
-        // 添加到手语句子（chineseName 已经在 _onGestureResults 中经过 KNN 处理，这里不再重复）
         if (chineseName && chineseName !== '未知') {
             this._signSentence += chineseName;
 
@@ -536,10 +530,10 @@ export const deafMethods = {
                 sentenceEl.textContent = this._signSentence;
                 sentenceEl.style.animation = 'none';
                 sentenceEl.offsetHeight;
-                sentenceEl.style.animation = 'fadeInUp 0.3s ease-out';
+                sentenceEl.style.animation = 'fadeInUp 0.15s ease-out';
             }
 
-            // 5秒无新输入则自动清空
+            // 2秒无新输入则自动朗读整句并清空
             clearTimeout(this._signSentenceTimeout);
             this._signSentenceTimeout = setTimeout(() => {
                 if (this._signSentence) {
@@ -547,7 +541,7 @@ export const deafMethods = {
                     this._signSentence = '';
                     if (sentenceEl) sentenceEl.textContent = '等待手语输入...';
                 }
-            }, 5000);
+            }, 2000);
         }
     },
 

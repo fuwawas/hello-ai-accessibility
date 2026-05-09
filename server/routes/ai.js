@@ -4,7 +4,55 @@ const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// AI 场景描述（用于视障辅助）
+/**
+ * 获取 VL API 配置（优先 MiMo，备选 OpenAI）
+ */
+function getVlApiConfig() {
+  // 优先使用 MiMo API
+  if (process.env.MIMO_API_KEY) {
+    return {
+      baseUrl: process.env.MIMO_BASE_URL || 'https://token-plan-cn.xiaomimimo.com/v1',
+      apiKey: process.env.MIMO_API_KEY,
+      model: process.env.MIMO_MODEL || 'MiMo-V2-Omni',
+      provider: 'mimo'
+    };
+  }
+  // 备选 OpenAI
+  if (process.env.OPENAI_API_KEY) {
+    return {
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: process.env.OPENAI_API_KEY,
+      model: 'gpt-4o-mini',
+      provider: 'openai'
+    };
+  }
+  return null;
+}
+
+/**
+ * 获取文本对话 API 配置
+ */
+function getChatApiConfig() {
+  if (process.env.MIMO_API_KEY) {
+    return {
+      baseUrl: process.env.MIMO_BASE_URL || 'https://token-plan-cn.xiaomimimo.com/v1',
+      apiKey: process.env.MIMO_API_KEY,
+      model: process.env.MIMO_CHAT_MODEL || 'MiMo-V2.5-Pro',
+      provider: 'mimo'
+    };
+  }
+  if (process.env.OPENAI_API_KEY) {
+    return {
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: process.env.OPENAI_API_KEY,
+      model: 'gpt-4o-mini',
+      provider: 'openai'
+    };
+  }
+  return null;
+}
+
+// AI 场景描述（用于视障辅助，VL 多模态）
 router.post('/describe', optionalAuth, async (req, res) => {
   try {
     const { image, context, conversation_id } = req.body;
@@ -13,22 +61,20 @@ router.post('/describe', optionalAuth, async (req, res) => {
       return res.status(400).json({ error: '请提供图片数据' });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      // 如果没有配置 API Key，返回模拟响应
+    const config = getVlApiConfig();
+    if (!config) {
       const mockDescription = generateMockDescription(context);
       return res.json({ description: mockDescription, source: 'local' });
     }
 
-    // 调用 OpenAI Vision API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${config.apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: config.model,
         messages: [
           {
             role: 'system',
@@ -49,7 +95,7 @@ router.post('/describe', optionalAuth, async (req, res) => {
     const data = await response.json();
 
     if (data.error) {
-      throw new Error(data.error.message);
+      throw new Error(data.error.message || JSON.stringify(data.error));
     }
 
     const description = data.choices[0].message.content;
@@ -68,7 +114,7 @@ router.post('/describe', optionalAuth, async (req, res) => {
       ).run(req.user.id, convId, 'assistant', description, 'blind');
     }
 
-    res.json({ description, source: 'ai' });
+    res.json({ description, source: config.provider });
   } catch (err) {
     console.error('AI 描述错误:', err);
     res.status(500).json({ error: '场景描述失败，请稍后重试' });
@@ -84,8 +130,8 @@ router.post('/chat', optionalAuth, async (req, res) => {
       return res.status(400).json({ error: '请提供消息内容' });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    const config = getChatApiConfig();
+    if (!config) {
       const mockResponse = generateMockChatResponse(message, module);
       return res.json({ reply: mockResponse, source: 'local' });
     }
@@ -115,14 +161,14 @@ router.post('/chat', optionalAuth, async (req, res) => {
       { role: 'user', content: message }
     ];
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${config.apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: config.model,
         messages,
         max_tokens: 500
       })
@@ -131,7 +177,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
     const data = await response.json();
 
     if (data.error) {
-      throw new Error(data.error.message);
+      throw new Error(data.error.message || JSON.stringify(data.error));
     }
 
     const reply = data.choices[0].message.content;
@@ -150,7 +196,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
       ).run(req.user.id, convId, 'assistant', reply, module);
     }
 
-    res.json({ reply, source: 'ai' });
+    res.json({ reply, source: config.provider });
   } catch (err) {
     console.error('AI 对话错误:', err);
     res.status(500).json({ error: '对话失败，请稍后重试' });

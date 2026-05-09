@@ -7,3 +7,6 @@ Thumbs.db
 *.db
 *.sqlite
 .claude/
+
+# Local Netlify folder
+.netlify

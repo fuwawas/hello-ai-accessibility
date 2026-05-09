@@ -9,6 +9,7 @@
 'use strict';
 
 import { $ } from '../utils/dom.js';
+import { apiClient } from '../utils/api-client.js';
 
 export const elderlyMethods = {
 
@@ -56,13 +57,11 @@ export const elderlyMethods = {
                 break;
 
             case 'news':
-                setMessage('&#128240; 正在为您播报今日新闻...<br>科技致善，AI助力无障碍生活。');
-                this.speech.speak('今日新闻摘要。科技致善，AI助力无障碍生活。越来越多的智能辅助工具正在帮助残障人士更好地融入社会。', { rate: 0.8 });
+                this._elderlyFetchNews(msgEl);
                 break;
 
             case 'music':
-                setMessage('&#127925; 为您播放舒缓音乐...<br>放松心情，享受美好时光。');
-                this.speech.speak('正在为您播放舒缓的音乐。放松心情，享受美好时光。', { rate: 0.8 });
+                this._elderlyToggleMusic(msgEl);
                 break;
 
             case 'time':
@@ -180,6 +179,149 @@ export const elderlyMethods = {
         this.toast.show('药物列表已清除', 'info');
         this.speech.speak('药物列表已清除。', { rate: 0.8 });
         this._elderlyMedicineReminder();
+    },
+
+    /**
+     * 获取 AI 新闻摘要
+     */
+    async _elderlyFetchNews(msgEl) {
+        if (msgEl) msgEl.innerHTML = '<p>&#128240; 正在为您获取今日新闻...</p>';
+        this.speech.speak('正在为您获取今日新闻，请稍等。', { rate: 0.8 });
+
+        try {
+            const data = await apiClient.chat(
+                '请用简洁温和的语气播报3条今日重要新闻摘要，每条新闻用一两句话概括，适合老年用户收听。格式：1. xxx 2. xxx 3. xxx',
+                'elderly'
+            );
+            const reply = data.reply || '暂时无法获取新闻，请稍后再试。';
+            if (msgEl) msgEl.innerHTML = `<p>&#128240; <strong>今日新闻</strong></p><p>${reply}</p>`;
+            this.speech.speak(reply, { rate: 0.8 });
+        } catch (e) {
+            console.warn('[新闻] AI 获取失败:', e);
+            const fallback = '今日新闻摘要：科技致善，AI助力无障碍生活。越来越多的智能辅助工具正在帮助残障人士更好地融入社会。各地社区持续完善无障碍设施建设。';
+            if (msgEl) msgEl.innerHTML = `<p>&#128240; <strong>今日新闻</strong></p><p>${fallback}</p>`;
+            this.speech.speak(fallback, { rate: 0.8 });
+        }
+    },
+
+    /**
+     * 切换音乐播放/停止
+     */
+    _elderlyToggleMusic(msgEl) {
+        if (this._elderlyMusicCtx && this._elderlyMusicPlaying) {
+            this._elderlyStopMusic();
+            if (msgEl) msgEl.innerHTML = '<p>&#127925; 音乐已停止。</p>';
+            this.speech.speak('音乐已停止。', { rate: 0.8 });
+        } else {
+            this._elderlyPlayMusic(msgEl);
+        }
+    },
+
+    /**
+     * 播放舒缓音乐（Web Audio API 五声音阶旋律）
+     */
+    _elderlyPlayMusic(msgEl) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            this._elderlyMusicCtx = ctx;
+            this._elderlyMusicPlaying = true;
+
+            // 主音量控制
+            const masterGain = ctx.createGain();
+            masterGain.gain.setValueAtTime(0, ctx.currentTime);
+            masterGain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 1.5);
+            masterGain.connect(ctx.destination);
+
+            // 五声音阶音符频率 (C大调)
+            const notes = [261.6, 293.7, 329.6, 392.0, 440.0, 523.3, 587.3, 659.3];
+            // 舒缓旋律模式（音符索引 + 时长）
+            const melody = [
+                [0, 1.0], [2, 1.0], [4, 1.2], [3, 0.8],
+                [2, 1.0], [1, 1.0], [0, 1.2], [3, 0.8],
+                [4, 1.0], [5, 1.0], [4, 1.2], [2, 0.8],
+                [3, 1.0], [1, 1.0], [0, 1.5], [null, 0.5],
+                [5, 1.0], [4, 1.0], [3, 1.2], [2, 0.8],
+                [1, 1.0], [0, 1.0], [2, 1.2], [4, 0.8],
+                [3, 1.0], [2, 1.0], [1, 1.5], [null, 0.5],
+            ];
+
+            let time = ctx.currentTime + 0.5;
+            const loopDuration = melody.reduce((sum, [, dur]) => sum + dur, 0);
+
+            const playLoop = (startTime) => {
+                let t = startTime;
+                for (const [noteIdx, duration] of melody) {
+                    if (noteIdx === null) {
+                        t += duration;
+                        continue;
+                    }
+                    const osc = ctx.createOscillator();
+                    const noteGain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(notes[noteIdx], t);
+                    // 轻微颤音
+                    const vibrato = ctx.createOscillator();
+                    const vibratoGain = ctx.createGain();
+                    vibrato.frequency.setValueAtTime(4, t);
+                    vibratoGain.gain.setValueAtTime(2, t);
+                    vibrato.connect(vibratoGain);
+                    vibratoGain.connect(osc.frequency);
+                    vibrato.start(t);
+                    vibrato.stop(t + duration);
+                    // 音符包络
+                    noteGain.gain.setValueAtTime(0, t);
+                    noteGain.gain.linearRampToValueAtTime(0.5, t + 0.08);
+                    noteGain.gain.exponentialRampToValueAtTime(0.15, t + duration * 0.7);
+                    noteGain.gain.linearRampToValueAtTime(0, t + duration);
+                    osc.connect(noteGain);
+                    noteGain.connect(masterGain);
+                    osc.start(t);
+                    osc.stop(t + duration);
+                    t += duration;
+                }
+                // 循环调度
+                if (this._elderlyMusicPlaying) {
+                    this._elderlyMusicTimer = setTimeout(() => {
+                        if (this._elderlyMusicPlaying) playLoop(startTime + loopDuration);
+                    }, (loopDuration - 2) * 1000);
+                }
+            };
+
+            playLoop(time);
+
+            if (msgEl) msgEl.innerHTML = `
+                <p>&#127925; <strong>正在播放舒缓音乐</strong></p>
+                <p>放松心情，享受美好时光。</p>
+                <button class="module-btn" onclick="app._elderlyStopMusic();$('#elderly-message').innerHTML='<p>&#127925; 音乐已停止。</p>';" style="font-size:var(--fs-md);margin-top:0.5em;">&#9209; 停止播放</button>
+            `;
+            this.speech.speak('正在为您播放舒缓的音乐。', { rate: 0.8 });
+        } catch (e) {
+            console.warn('[音乐] 播放失败:', e);
+            if (msgEl) msgEl.innerHTML = '<p>&#127925; 音乐播放失败，请检查浏览器是否支持。</p>';
+            this.speech.speak('抱歉，音乐播放失败。', { rate: 0.8 });
+        }
+    },
+
+    /**
+     * 停止音乐播放
+     */
+    _elderlyStopMusic() {
+        this._elderlyMusicPlaying = false;
+        if (this._elderlyMusicTimer) {
+            clearTimeout(this._elderlyMusicTimer);
+            this._elderlyMusicTimer = null;
+        }
+        if (this._elderlyMusicCtx) {
+            this._elderlyMusicCtx.close().catch(() => {});
+            this._elderlyMusicCtx = null;
+        }
+    },
+
+    /**
+     * 模块销毁时清理
+     */
+    _elderlyDestroy() {
+        this._elderlyStopMusic();
     }
 
 };
