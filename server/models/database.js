@@ -1,8 +1,11 @@
 const Database = require('better-sqlite3');
 const path = require('path');
-const bcrypt = require('bcryptjs');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'hello-ai.db');
+// 检测是否在 Vercel 环境
+const isVercel = process.env.VERCEL === '1' || process.env.NOW_REGION;
+
+// Vercel 环境使用内存数据库，其他环境使用文件数据库
+const DB_PATH = isVercel ? ':memory:' : (process.env.DB_PATH || path.join(__dirname, '..', 'data', 'hello-ai.db'));
 
 let db;
 
@@ -83,7 +86,11 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_ai_conversations_conv ON ai_conversations(conversation_id);
   `);
 
-  console.log('数据库表结构已就绪');
+  if (isVercel) {
+    console.log('数据库表结构已就绪 (Vercel 内存模式)');
+  } else {
+    console.log('数据库表结构已就绪');
+  }
 }
 
 module.exports = { getDb, initDatabase };
