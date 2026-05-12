@@ -27,20 +27,32 @@ export const physicalMethods = {
             return;
         }
 
+        // 延迟启动，确保内联脚本的 recognition 已完全停止
+        setTimeout(() => {
+            console.log('[语音控制] 开始初始化语音识别...');
+            this._initPhysicalRecognition(SpeechRecognition);
+        }, 500);
+    },
+
+    _initPhysicalRecognition(SpeechRecognition) {
         this._physicalRecognition = new SpeechRecognition();
         this._physicalRecognition.lang = 'zh-CN';
         this._physicalRecognition.continuous = true;
         this._physicalRecognition.interimResults = true;
 
         this._physicalRecognition.onresult = (event) => {
-            // 如果系统正在播报语音（任何模块的），忽略识别结果
-            if (this.speech.isSpeaking) {
+            // 防止回声：TTS 播报期间及结束后 1 秒内忽略识别结果
+            var now = Date.now();
+            var ttsFinished = this._physicalTTSFinishedAt || 0;
+            if (this.speech.isSpeaking || (now - ttsFinished) < 1000) {
                 return;
             }
 
             const result = event.results[event.results.length - 1];
             const transcript = result[0].transcript.trim();
             const isFinal = result.isFinal;
+
+            console.log('[语音控制] 识别到:', transcript);
 
             // 更新识别显示
             const recognizedEl = $('#voice-recognized');
@@ -68,8 +80,10 @@ export const physicalMethods = {
         };
 
         this._physicalRecognition.onend = () => {
-            // 自动重启（持续监听），但如果正在播报则等待
-            if (this._physicalVoiceActive && this.currentMode === 'physical' && !this.speech.isSpeaking) {
+            // 自动重启（持续监听），但如果正在播报或刚结束播报则等待
+            var now = Date.now();
+            var ttsFinished = this._physicalTTSFinishedAt || 0;
+            if (this._physicalVoiceActive && this.currentMode === 'physical' && !this.speech.isSpeaking && (now - ttsFinished) >= 1000) {
                 try {
                     this._physicalRecognition.start();
                 } catch (e) {
@@ -80,11 +94,16 @@ export const physicalMethods = {
 
         this._physicalVoiceActive = true;
         this._physicalIsSpeaking = false;
+        this._physicalTTSFinishedAt = 0;
 
         try {
             this._physicalRecognition.start();
+            console.log('[语音控制] 语音识别已启动');
+            const statusEl = $('#voice-status-text');
+            if (statusEl) statusEl.textContent = '正在聆听...';
         } catch (e) {
             console.warn('[语音控制] 启动失败:', e);
+            this.toast.show('语音识别启动失败: ' + e.message, 'error');
         }
     },
 
@@ -145,6 +164,7 @@ export const physicalMethods = {
                 ...options,
                 onEnd: () => {
                     this._physicalIsSpeaking = false;
+                    this._physicalTTSFinishedAt = Date.now();
                     // 恢复识别
                     if (this._physicalVoiceActive && this.currentMode === 'physical' && this._physicalRecognition) {
                         try {
@@ -212,6 +232,7 @@ export const physicalMethods = {
             rate: 0.85,
             onEnd: () => {
                 this._physicalIsSpeaking = false;
+                this._physicalTTSFinishedAt = Date.now();
                 if (this._physicalVoiceActive && this.currentMode === 'physical' && this._physicalRecognition) {
                     try {
                         this._physicalRecognition.start();

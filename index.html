@@ -101,7 +101,7 @@
                 <button class="voice-nav-btn" id="btn-voice-nav" aria-label="语音导航：说出模式名称直接进入">
                     <span class="voice-nav-icon" aria-hidden="true">&#127908;</span>
                     <span class="voice-nav-text">语音导航</span>
-                    <span class="voice-nav-hint">说出模式名称即可进入</span>
+                    <span class="voice-nav-hint">正在聆听...</span>
                 </button>
                 <div class="voice-nav-status" id="voice-nav-status" aria-live="polite"></div>
             </div>
@@ -294,12 +294,9 @@
             if (modes) modes.style.display = '';
             if (mc) mc.innerHTML = '';
             if (cc) cc.hidden = true;
-            var video = document.getElementById('camera-video');
-            if (video && video.srcObject) {
-                video.srcObject.getTracks().forEach(function(t) { t.stop(); });
-                video.srcObject = null;
-            }
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            // 触发自定义事件，由 app.js 处理摄像头停止和状态清理
+            window.dispatchEvent(new CustomEvent('app:goHome'));
         }
         // 直接绑定到按钮（捕获阶段，确保最先响应）
         function bindBackBtn() {
@@ -351,13 +348,22 @@
             '认知': 'cognitive', '记忆': 'cognitive', '引导': 'cognitive',
             '肢体': 'physical', '语音控制': 'physical',
             '老年': 'elderly', '老人': 'elderly', '长辈': 'elderly',
-            '声音': 'voice-repair', '说话': 'voice-repair', '嗓子': 'voice-repair', '声带': 'voice-repair', '修复': 'voice-repair',
+            '声音': 'voice-repair', '说话': 'voice-repair', '嗓子': 'voice-repair',
             '设置': 'settings', '偏好': 'settings'
         };
 
+        var recognition = null;
+        var isListening = false;
+        var isPaused = false;
+        var isEnteringMode = false; // 标记正在进入模式，防止 recognition 重启
+        var btn, status;
+        var _lastMatch = '';
+        var _lastMatchTime = 0;
+
         function initVoiceNav() {
-            var btn = document.getElementById('btn-voice-nav');
-            var status = document.getElementById('voice-nav-status');
+            btn = document.getElementById('btn-voice-nav');
+            status = document.getElementById('voice-nav-status');
+
             if (!btn) return;
 
             var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -366,86 +372,224 @@
                 return;
             }
 
-            var recognition = null;
-            var isListening = false;
-
             try {
                 recognition = new SR();
                 recognition.lang = 'zh-CN';
-                recognition.continuous = false;
-                recognition.interimResults = true;
-                // 保存到 btn 元素上，供 speakTextAndResume 访问
+                recognition.continuous = true;
+                recognition.interimResults = true; // 启用中间结果，更快响应
+                recognition.maxAlternatives = 1;
                 btn._recognition = recognition;
 
                 recognition.onresult = function(ev) {
-                    // 防止回声：TTS 播报期间及结束后 1.5 秒内忽略识别结果
-                    var now = Date.now();
-                    if (window.speechSynthesis && window.speechSynthesis.speaking) return;
-                    if ((now - _ttsFinishedAt) < 1500) return;
-                    var transcript = '';
-                    for (var i = 0; i < ev.results.length; i++) transcript += ev.results[i][0].transcript;
-                    if (status) status.textContent = '识别到: ' + transcript;
-                    if (ev.results[ev.results.length - 1].isFinal) {
-                        var matchedMode = matchVoiceCommand(transcript);
-                        if (matchedMode) {
-                            var card = document.querySelector('[data-mode="' + matchedMode + '"]');
-                            if (card) {
-                                speakTextAndResume('正在进入', function() { card.click(); });
+                    if (isPaused) return;
+
+                    // 只处理最后一个结果
+                    var lastResult = ev.results[ev.results.length - 1];
+                    var transcript = lastResult[0].transcript.trim();
+
+                    // 中间结果：快速匹配模式关键词
+                    if (!lastResult.isFinal) {
+                        var quickMatch = matchVoiceCommand(transcript);
+                        if (quickMatch && quickMatch !== _lastMatch) {
+                            var now = Date.now();
+                            if (now - _lastMatchTime > 1000) { // 1秒内不重复触发
+                                _lastMatch = quickMatch;
+                                _lastMatchTime = now;
+                                handleModeMatch(quickMatch);
                             }
-                        } else {
-                            speakTextAndResume('没有听清，请再说一次', function() {
-                                // 播报结束后重新启动识别
-                                setTimeout(function() {
-                                    try { recognition.start(); isListening = true; btn.classList.add('listening'); if (status) status.textContent = '正在聆听...请说出模式名称'; } catch(e) {}
-                                }, 1200);
-                            });
-                            if (status) status.textContent = '未匹配到模式，请重试';
                         }
+                        return;
+                    }
+
+                    // 最终结果
+                    console.log('[语音导航] 最终识别:', transcript);
+                    if (status) status.textContent = transcript;
+
+                    // 停止命令
+                    if (transcript.indexOf('停止') !== -1 || transcript.indexOf('安静') !== -1 || transcript.indexOf('关闭') !== -1) {
+                        speakQuick('关闭');
+                        stopListening();
+                        return;
+                    }
+
+                    // 返回主页
+                    if (transcript.indexOf('返回') !== -1 || transcript.indexOf('主页') !== -1 ||
+                        transcript.indexOf('首页') !== -1 || transcript.indexOf('退出') !== -1) {
+                        if (window.app && window.app.currentMode) {
+                            speakQuick('返回');
+                            setTimeout(function() { window.app._goHome(); }, 200);
+                        }
+                        return;
+                    }
+
+                    // 匹配模式
+                    var matchedMode = matchVoiceCommand(transcript);
+                    if (matchedMode) {
+                        handleModeMatch(matchedMode);
                     }
                 };
+
                 recognition.onerror = function(ev) {
-                    isListening = false;
-                    btn.classList.remove('listening');
-                    if (status) status.textContent = '识别出错: ' + ev.error;
+                    if (ev.error === 'no-speech' || ev.error === 'aborted') return;
+                    if (ev.error === 'not-allowed') {
+                        console.warn('[语音导航] 麦克风权限被拒绝');
+                        btn.style.display = 'none';
+                    }
                 };
+
                 recognition.onend = function() {
-                    // 如果正在播报或刚结束播报，不更新状态
-                    var now = Date.now();
-                    if (window.speechSynthesis && window.speechSynthesis.speaking) return;
-                    if ((now - _ttsFinishedAt) < 1500) return;
-                    isListening = false;
-                    btn.classList.remove('listening');
+                    if (isPaused || isEnteringMode) return;
+                    if (isListening) {
+                        try { recognition.start(); } catch(e) {}
+                    }
                 };
+
+                // 立即开始监听
+                startListening();
+
+                // 按钮点击切换
+                btn.addEventListener('click', function() {
+                    if (isListening) {
+                        stopListening();
+                    } else {
+                        startListening();
+                    }
+                });
+
+                // 返回主页事件
+                window.addEventListener('app:goHome', function() {
+                    _lastMatch = '';
+                    isEnteringMode = false;
+                    if (!isListening) {
+                        setTimeout(function() { startListening(); }, 200);
+                    }
+                });
+
+                console.log('[语音导航] 初始化完成');
             } catch (e) {
                 console.warn('[语音导航] 初始化失败:', e);
                 btn.style.display = 'none';
+            }
+        }
+
+        function handleModeMatch(mode) {
+            var card = document.querySelector('[data-mode="' + mode + '"]');
+            if (!card) return;
+
+            // 检查是否已在该模式
+            if (window.app && window.app.currentMode === mode) {
+                speakQuick('已在');
                 return;
             }
 
-            btn.addEventListener('click', function() {
-                if (isListening) {
-                    try { recognition.stop(); } catch(e) {}
-                    isListening = false;
-                    btn.classList.remove('listening');
-                    if (status) status.textContent = '';
+            // 标记正在进入模式，防止 recognition 重启
+            isEnteringMode = true;
+            isPaused = true;
+
+            // 进入模式的函数
+            function enterMode() {
+                isListening = false;
+                isPaused = false;
+                isEnteringMode = false;
+                btn.classList.remove('listening');
+                if (status) status.textContent = '已关闭';
+                // 确保 recognition 已完全停止
+                try { recognition.abort(); } catch(e) {}
+                if (window.app && window.app._onModeSelect) {
+                    window.app._onModeSelect(card, true);
                 } else {
-                    // 先播报提示，播报结束后再启动识别（防止回声）
-                    if (status) status.textContent = '正在准备...';
-                    btn.classList.add('listening');
-                    speakTextAndResume('请说出您想进入的模式', function() {
-                        setTimeout(function() {
-                            try {
-                                recognition.start();
-                                isListening = true;
-                                if (status) status.textContent = '正在聆听...请说出模式名称';
-                            } catch (e) {
-                                btn.classList.remove('listening');
-                                if (status) status.textContent = '无法启动语音识别';
-                            }
-                        }, 1200);
-                    });
+                    card.click();
                 }
-            });
+            }
+
+            // 停止 recognition，等待完全停止后再进入模式
+            var originalOnEnd = recognition.onend;
+            recognition.onend = function() {
+                // 恢复原始 onend
+                recognition.onend = originalOnEnd;
+                // 播报并进入模式
+                try {
+                    window.speechSynthesis.cancel();
+                    var utter = new SpeechSynthesisUtterance('进入');
+                    utter.lang = 'zh-CN';
+                    utter.rate = 1.5;
+                    utter.onend = enterMode;
+                    utter.onerror = enterMode;
+                    window.speechSynthesis.speak(utter);
+                } catch (e) {
+                    enterMode();
+                }
+            };
+
+            // 停止 recognition
+            try { recognition.stop(); } catch(e) {}
+
+            // 超时保护：如果 onend 没有触发，500ms 后强制进入模式
+            setTimeout(function() {
+                if (isEnteringMode) {
+                    recognition.onend = originalOnEnd;
+                    enterMode();
+                }
+            }, 500);
+        }
+
+        // 快速播报（最短延迟）
+        function speakQuick(text) {
+            isPaused = true;
+            try { recognition.stop(); } catch(e) {}
+
+            try {
+                window.speechSynthesis.cancel();
+                var utter = new SpeechSynthesisUtterance(text);
+                utter.lang = 'zh-CN';
+                utter.rate = 1.5; // 更快
+                utter.volume = 0.8;
+                utter.onend = function() {
+                    isPaused = false;
+                    _lastMatch = '';
+                    if (isListening) {
+                        try { recognition.start(); } catch(e) {}
+                    }
+                };
+                utter.onerror = function() {
+                    isPaused = false;
+                    _lastMatch = '';
+                    if (isListening) {
+                        try { recognition.start(); } catch(e) {}
+                    }
+                };
+                window.speechSynthesis.speak(utter);
+            } catch (e) {
+                isPaused = false;
+                _lastMatch = '';
+            }
+        }
+
+        function startListening() {
+            if (!recognition || isListening) return;
+            try {
+                recognition.start();
+                isListening = true;
+                isPaused = false;
+                _lastMatch = '';
+                btn.classList.add('listening');
+                if (status) status.textContent = '聆听中...';
+                console.log('[语音导航] 开始监听');
+            } catch (e) {
+                if (e.name !== 'InvalidStateError') {
+                    console.warn('[语音导航] 启动失败:', e);
+                }
+            }
+        }
+
+        function stopListening() {
+            if (!recognition) return;
+            try { recognition.stop(); } catch(e) {}
+            isListening = false;
+            isPaused = false;
+            _lastMatch = '';
+            btn.classList.remove('listening');
+            if (status) status.textContent = '已关闭';
         }
 
         function matchVoiceCommand(transcript) {
@@ -456,54 +600,6 @@
                 }
             }
             return null;
-        }
-
-        function speakText(text) {
-            try {
-                if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                    var utter = new SpeechSynthesisUtterance(text);
-                    utter.lang = 'zh-CN';
-                    utter.rate = 1.0;
-                    window.speechSynthesis.speak(utter);
-                }
-            } catch (e) {}
-        }
-
-        // TTS 结束时间戳，用于回声过滤
-        var _ttsFinishedAt = 0;
-
-        // 防止回声的播报函数：播报时暂停语音识别，播报结束后恢复
-        function speakTextAndResume(text, callback) {
-            try {
-                if ('speechSynthesis' in window) {
-                    // 暂停语音识别
-                    var btn = document.getElementById('btn-voice-nav');
-                    var recognition = btn ? btn._recognition : null;
-                    if (recognition) {
-                        try { recognition.stop(); } catch(e) {}
-                    }
-
-                    window.speechSynthesis.cancel();
-                    var utter = new SpeechSynthesisUtterance(text);
-                    utter.lang = 'zh-CN';
-                    utter.rate = 1.0;
-                    utter.onend = function() {
-                        _ttsFinishedAt = Date.now();
-                        // 播报结束后执行回调（如点击卡片）
-                        if (callback) callback();
-                    };
-                    utter.onerror = function() {
-                        _ttsFinishedAt = Date.now();
-                        if (callback) callback();
-                    };
-                    window.speechSynthesis.speak(utter);
-                } else {
-                    if (callback) callback();
-                }
-            } catch (e) {
-                if (callback) callback();
-            }
         }
 
         if (document.readyState === 'loading') {

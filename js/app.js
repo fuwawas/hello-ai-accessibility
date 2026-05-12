@@ -253,16 +253,12 @@ class AccessibilityApp {
 
             console.log('[Hello AI] 应用初始化完成');
 
-            // 手机端延迟播放欢迎语（SpeechManager 内部已处理语音解锁）
-            if (this._isMobile) {
-                // 手机端：首次点击时播放欢迎语
-                const playWelcome = () => {
-                    setTimeout(() => this._speakWelcome(), 300);
-                };
-                document.addEventListener('click', playWelcome, { once: true });
-            } else {
-                setTimeout(() => this._speakWelcome(), 800);
-            }
+            // 语音导航由 index.html 的内联脚本处理，无需在此初始化
+
+            // 监听内联脚本的 goHome 事件，执行应用状态清理
+            window.addEventListener('app:goHome', () => {
+                this._goHome();
+            });
         } catch (e) {
             console.error('[Hello AI] 应用初始化失败:', e);
         }
@@ -675,17 +671,7 @@ class AccessibilityApp {
                 ctx.app._setModuleHTML(`
                     <div class="module-panel deaf-panel">
                         <p class="module-hint">请将手放在摄像头前方，系统将实时识别您的手势并转换为文字和语音。</p>
-                        
-                        <!-- 调试状态面板 -->
-                        <div id="debug-panel" style="background:rgba(0,0,0,0.7);color:#0f0;font-size:12px;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-family:monospace;">
-                            <div>摄像头: <span id="dbg-camera">检测中...</span></div>
-                            <div>视频就绪: <span id="dbg-ready">-</span> | 尺寸: <span id="dbg-size">-</span></div>
-                            <div>模型: <span id="dbg-model">未加载</span></div>
-                            <div>检测帧: <span id="dbg-frames">0</span> | 手部: <span id="dbg-hands">0</span></div>
-                            <div>训练样本: <span id="dbg-samples">0</span> | KNN结果: <span id="dbg-knn">-</span></div>
-                            <div>最后错误: <span id="dbg-error">无</span></div>
-                        </div>
-                        
+
                         <div class="deaf-layout">
                             <div class="deaf-main">
                                 <div class="module-status" id="gesture-status">
@@ -707,6 +693,9 @@ class AccessibilityApp {
                                     </button>
                                     <button class="module-btn btn-secondary" onclick="app._deafSpeakLast()">
                                         &#9835; 朗读最后一条
+                                    </button>
+                                    <button class="module-btn btn-secondary" onclick="app._signSpeakSentence()">
+                                        &#128172; 朗读句子
                                     </button>
                                     <button class="module-btn btn-secondary" onclick="app._deafClearHistory()">
                                         &#128465; 清除记录
@@ -744,13 +733,9 @@ class AccessibilityApp {
                         </div>
                     </div>
                 `);
-                
-                // 自动启动手势识别（延迟1秒等待摄像头就绪）
-                setTimeout(() => {
-                    ctx.app._deafStartGesture();
-                }, 1500);
-                
-                ctx.app.speech.speak('听障辅助模式已启动。请将手放在摄像头前，点击开始识别按钮。');
+
+                // 不自动启动，等待用户点击"开始识别"按钮
+                ctx.app.speech.speak('听障辅助模式已启动。请点击开始识别按钮。');
             },
             
             destroy: async (ctx) => {
@@ -1144,7 +1129,13 @@ class AccessibilityApp {
                 var isListening = false;
 
                 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-                if (SR) {
+                var recognition = null;
+                var isListening = false;
+
+                // 延迟创建 recognition，确保内联脚本的 recognition 已完全停止
+                function initRecognition() {
+                    if (recognition) return recognition;
+                    if (!SR) return null;
                     try {
                         recognition = new SR();
                         recognition.lang = 'zh-CN';
@@ -1170,6 +1161,7 @@ class AccessibilityApp {
                             }
                         };
                         recognition.onerror = function(ev) {
+                            console.warn('[声音修复] 识别错误:', ev.error);
                             var st = document.getElementById('voice-status');
                             if (st) st.textContent = '识别出错: ' + ev.error;
                             isListening = false;
@@ -1187,16 +1179,21 @@ class AccessibilityApp {
                             var st = document.getElementById('voice-status');
                             if (st) st.textContent = '点击麦克风开始说话';
                         };
+                        console.log('[声音修复] 语音识别已创建');
+                        return recognition;
                     } catch (e) {
                         console.warn('[声音修复] 语音识别初始化失败:', e);
+                        return null;
                     }
                 }
 
                 if (micBtn) {
                     micBtn.addEventListener('click', function() {
-                        if (!recognition) { app.toast.show('浏览器不支持语音识别，请手动输入', 'error'); return; }
+                        // 延迟创建 recognition，确保内联脚本的 recognition 已完全停止
+                        var rec = initRecognition();
+                        if (!rec) { app.toast.show('浏览器不支持语音识别，请手动输入', 'error'); return; }
                         if (isListening) {
-                            try { recognition.stop(); } catch(e) {}
+                            try { rec.stop(); } catch(e) {}
                             isListening = false;
                             app._voiceRepairIsListening = false;
                             micBtn.classList.remove('listening');
@@ -1206,17 +1203,24 @@ class AccessibilityApp {
                             // 先取消正在播放的 TTS，防止回声
                             app.speech.stop();
                             app._voiceRepairTTSFinishedAt = Date.now();
+                            var st = document.getElementById('voice-status');
+                            if (st) st.textContent = '准备中...';
                             // 等待较长时间让扬声器残余声音消散，再启动识别
                             setTimeout(function() {
                                 try {
-                                    recognition.start();
+                                    console.log('[声音修复] 尝试启动语音识别...');
+                                    rec.start();
                                     isListening = true;
                                     app._voiceRepairIsListening = true;
                                     micBtn.classList.add('listening');
                                     var st = document.getElementById('voice-status');
                                     if (st) st.textContent = '正在聆听...请说话';
-                                } catch (e) { app.toast.show('无法启动语音识别: ' + e.message, 'error'); }
-                            }, 1200);
+                                    console.log('[声音修复] 语音识别已启动');
+                                } catch (e) {
+                                    console.warn('[声音修复] 启动失败:', e);
+                                    app.toast.show('无法启动语音识别: ' + e.message, 'error');
+                                }
+                            }, 1500);
                         }
                     });
                 }
@@ -1241,13 +1245,13 @@ class AccessibilityApp {
                 app._voiceRepairTTSFinishedAt = 0;
             },
 
-            destroy: async function() {
+            destroy: async (ctx) => {
                 // 退出时停止语音识别并清理状态
-                if (app._voiceRepairRecognition) {
-                    try { app._voiceRepairRecognition.stop(); } catch(e) {}
-                    app._voiceRepairRecognition = null;
+                if (ctx.app._voiceRepairRecognition) {
+                    try { ctx.app._voiceRepairRecognition.stop(); } catch(e) {}
+                    ctx.app._voiceRepairRecognition = null;
                 }
-                app._voiceRepairIsListening = false;
+                ctx.app._voiceRepairIsListening = false;
             }
         });
     }
@@ -1324,13 +1328,16 @@ class AccessibilityApp {
      * 模式选择处理
      * @param {Element} card - 被选中的卡片元素
      */
-    async _onModeSelect(card) {
+    async _onModeSelect(card, skipSpeech = false) {
         const mode = card.dataset.mode;
         if (!mode) return;
 
-        // 朗读选中模式
         const title = card.querySelector('.card-title').textContent;
-        this.speech.speak(`正在进入${title}模式`);
+
+        // 如果是从语音导航触发的（skipSpeech=true），不重复播报
+        if (!skipSpeech) {
+            this.speech.speak(`正在进入${title}模式`);
+        }
 
         // 保存当前模式
         this.currentMode = mode;
@@ -1408,11 +1415,27 @@ class AccessibilityApp {
         this._blindPrevFrame = null;
         try { if (this.dynamicRecognizer) this.dynamicRecognizer.reset(); } catch (e) {}
 
+        // 清理手语训练状态
+        this._signTrainingMode = false;
+        this._signTrainingLabel = '';
+        this._signTrainingCount = 0;
+
         this.currentMode = null;
         this._currentMode = null;
         try { this._hideCamera(); } catch (e) {}
 
-        try { this.speech.speak('已返回主页。'); } catch (e) {}
+        // 恢复大字体和高对比度设置（认知障碍模式会强制开启）
+        if (!this.settings.get('largeFont')) {
+            this.dom.body.classList.remove('large-font');
+            this.dom.btnFontToggle.classList.remove('active');
+        }
+        if (!this.settings.get('highContrast')) {
+            this.dom.body.classList.remove('high-contrast');
+            this.dom.btnContrastToggle.classList.remove('active');
+        }
+
+        // 分发返回主页事件
+        window.dispatchEvent(new CustomEvent('app:goHome'));
     }
 
     /**
@@ -1445,14 +1468,10 @@ class AccessibilityApp {
                     }
                 }, 500);
                 this.toast.show('摄像头已启动', 'success');
-                const dbgCamera = $('#dbg-camera');
-                if (dbgCamera) dbgCamera.textContent = '已启动';
             }
         }).catch(err => {
             if (overlay.parentNode) overlay.remove();
             this.toast.show(err.message, 'error');
-            const dbgCamera = $('#dbg-camera');
-            if (dbgCamera) dbgCamera.textContent = '失败: ' + err.message;
         });
     }
 
@@ -1518,7 +1537,7 @@ class AccessibilityApp {
      * 播报欢迎语
      */
     _speakWelcome() {
-        const welcomeText = this._isMobile 
+        const welcomeText = this._isMobile
             ? '欢迎使用 Hello AI 无障碍辅助。请选择功能模式。'
             : '欢迎使用 Hello AI 无障碍辅助。这是一款为残障人士设计的智能辅助工具。请选择一个功能模式开始使用。视障辅助可以帮助您感知周围环境，听障辅助可以将手语翻译为语音，认知辅助提供步骤引导，肢体障碍辅助支持语音控制。';
         this.speech.speak(welcomeText, { rate: this._isMobile ? 0.9 : 1.0 });
@@ -1545,18 +1564,67 @@ class AccessibilityApp {
             }
         }
 
+        // 显示加载遮罩
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'model-loading-overlay';
+        loadingOverlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #f0ece4; font-family: var(--font-primary);
+        `;
+        loadingOverlay.innerHTML = `
+            <div style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 1rem; animation: pulse 1.5s ease-in-out infinite;">&#129306;</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.5rem; color: #c8a45c;">正在加载手势识别模型</h3>
+                <p style="font-size: 0.9rem; color: #a09a8e; margin-bottom: 1.5rem;">首次加载需要下载约 7MB，请耐心等待...</p>
+                <div style="width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                    <div id="loading-progress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #c8a45c, #dbb96e); border-radius: 2px; transition: width 0.3s ease;"></div>
+                </div>
+                <p id="loading-status" style="font-size: 0.8rem; color: #9a9490; margin-top: 0.5rem;">准备中...</p>
+                <button id="loading-cancel" style="margin-top: 1.5rem; padding: 0.5rem 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #a09a8e; cursor: pointer; font-size: 0.9rem;">取消加载</button>
+            </div>
+        `;
+        document.body.appendChild(loadingOverlay);
+
+        // 取消按钮和超时机制
+        let loadingCancelled = false;
+        const cancelBtn = document.getElementById('loading-cancel');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                loadingCancelled = true;
+                loadingOverlay.remove();
+                this.toast.show('已取消加载模型', 'info');
+            });
+        }
+
+        // 30秒超时
+        const loadingTimeout = setTimeout(() => {
+            if (!loadingCancelled && loadingOverlay.parentNode) {
+                loadingCancelled = true;
+                loadingOverlay.remove();
+                this.toast.show('模型加载超时，请检查网络后重试', 'error', 5000);
+            }
+        }, 30000);
+
+        const updateProgress = (percent, status) => {
+            if (loadingCancelled) return;
+            const progressBar = document.getElementById('loading-progress');
+            const statusText = document.getElementById('loading-status');
+            if (progressBar) progressBar.style.width = percent + '%';
+            if (statusText) statusText.textContent = status;
+        };
+
         try {
-            this.toast.show('正在加载手势识别模块...', 'info', 5000);
+            updateProgress(10, '加载引擎组件...');
             console.log('[手势识别] 开始加载...');
 
             // 使用本地文件（避免CDN被墙）
-            // 如果本地文件加载失败，回退到CDN
             let visionModule;
             let wasmPath;
             let modelPath;
 
             try {
-                // 尝试本地加载
                 const basePath = this._getBasePath();
                 visionModule = await import(basePath + 'libs/mediapipe/vision_bundle.mjs');
                 wasmPath = basePath + 'libs/mediapipe/wasm';
@@ -1571,14 +1639,15 @@ class AccessibilityApp {
 
             const { FilesetResolver, GestureRecognizer } = visionModule;
 
-            this.toast.show('步骤 1/3：加载 WASM 引擎...', 'info', 8000);
-            this.speech.speak('正在加载识别引擎，请稍候');
+            if (loadingCancelled) return false;
+
+            updateProgress(30, '加载 WASM 引擎...');
             const vision = await FilesetResolver.forVisionTasks(wasmPath);
 
-            // 手机端默认使用 CPU（GPU/WebGL 在移动浏览器不稳定）
+            if (loadingCancelled) return false;
+
             const delegate = this._isMobile ? 'CPU' : 'GPU';
-            this.toast.show('步骤 2/3：加载识别模型（' + delegate + '模式，约 7MB）...', 'info', 15000);
-            this.speech.speak('正在加载识别模型，请耐心等待');
+            updateProgress(50, '加载识别模型（' + delegate + '模式）...');
 
             this._gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
                 baseOptions: {
@@ -1592,17 +1661,23 @@ class AccessibilityApp {
                 minTrackingConfidence: 0.3
             });
 
-            this.toast.show('步骤 3/3：加载完成！', 'success');
-            this.speech.speak('识别模型加载成功，手势识别已就绪');
+            clearTimeout(loadingTimeout);
+            updateProgress(100, '加载完成！');
             console.log('[手势识别] 加载成功（' + delegate + '模式）');
-            const dbgModel = $('#dbg-model');
-            if (dbgModel) dbgModel.textContent = '已加载(' + delegate + ')';
+
+            // 延迟移除遮罩
+            setTimeout(() => {
+                if (loadingOverlay.parentNode) loadingOverlay.remove();
+                this.toast.show('手势识别已就绪', 'success');
+            }, 500);
+
             return true;
         } catch (error) {
+            if (loadingCancelled) return false;
             console.error('[手势识别] 初始模式失败:', error);
-            // 降级尝试：如果GPU失败试CPU，如果CPU失败试GPU
+            updateProgress(50, '尝试备用模式...');
+
             const fallbackDelegate = this._isMobile ? 'GPU' : 'CPU';
-            this.toast.show('尝试' + fallbackDelegate + '模式...', 'info');
             try {
                 const basePath = this._getBasePath();
                 let visionModule, wasmPath, modelPath;
@@ -1615,8 +1690,16 @@ class AccessibilityApp {
                     wasmPath = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm";
                     modelPath = "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
                 }
+
+                if (loadingCancelled) return false;
+
                 const { FilesetResolver, GestureRecognizer } = visionModule;
+                updateProgress(70, '加载备用引擎...');
                 const vision = await FilesetResolver.forVisionTasks(wasmPath);
+
+                if (loadingCancelled) return false;
+
+                updateProgress(80, '加载备用模型...');
                 this._gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath: modelPath,
@@ -1628,12 +1711,18 @@ class AccessibilityApp {
                     minHandPresenceConfidence: 0.3,
                     minTrackingConfidence: 0.3
                 });
-                this.toast.show('手势识别模型加载成功（' + fallbackDelegate + '模式）', 'success');
-                this.speech.speak('识别模型加载成功');
-                console.log('[手势识别] 加载成功（' + fallbackDelegate + '降级模式）');
+
+                clearTimeout(loadingTimeout);
+                updateProgress(100, '加载完成！');
+                setTimeout(() => {
+                    if (loadingOverlay.parentNode) loadingOverlay.remove();
+                    this.toast.show('手势识别已就绪（' + fallbackDelegate + '模式）', 'success');
+                }, 500);
                 return true;
             } catch (e2) {
                 console.error('[手势识别] 降级模式也失败:', e2);
+                clearTimeout(loadingTimeout);
+                if (loadingOverlay.parentNode) loadingOverlay.remove();
                 this.toast.show('模型加载失败: ' + e2.message, 'error', 5000);
                 return false;
             }

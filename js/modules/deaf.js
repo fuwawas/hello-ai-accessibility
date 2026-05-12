@@ -80,48 +80,6 @@ export const deafMethods = {
                     const results = this._gestureRecognizer.recognizeForVideo(video, timestamp);
                     _consecutiveErrors = 0;
                     this._onGestureResults(results, 'deaf');
-
-                    // 更新调试面板（用当前结果，不额外调用）
-                    if (frameCount % 10 === 0) {
-                        const dbgReady = $('#dbg-ready');
-                        const dbgSize = $('#dbg-size');
-                        const dbgFrames = $('#dbg-frames');
-                        const dbgHands = $('#dbg-hands');
-                        const dbgSamples = $('#dbg-samples');
-                        const dbgKnn = $('#dbg-knn');
-                        if (dbgReady) dbgReady.textContent = video.readyState + '/4';
-                        if (dbgSize) dbgSize.textContent = video.videoWidth + 'x' + video.videoHeight;
-                        if (dbgFrames) dbgFrames.textContent = frameCount;
-                        if (dbgHands) {
-                            const hc = results.landmarks ? results.landmarks.length : 0;
-                            dbgHands.textContent = hc;
-                        }
-                        if (dbgSamples) {
-                            const sc = this.signClassifier;
-                            if (sc && sc.samples.length > 0) {
-                                const counts = {};
-                                sc.samples.forEach(s => counts[s.label] = (counts[s.label] || 0) + 1);
-                                dbgSamples.textContent = sc.samples.length + '个 [' + Object.entries(counts).map(([k,v]) => k+':'+v).join(', ') + ']';
-                            } else {
-                                dbgSamples.textContent = '0';
-                            }
-                        }
-                        // 尝试KNN分类并显示结果
-                        if (dbgKnn && this.signClassifier && this.signClassifier.samples.length > 0 && results.landmarks && results.landmarks.length > 0) {
-                            const knn = this.signClassifier.classify(results.landmarks);
-                            dbgKnn.textContent = knn ? knn.label + '(' + (knn.confidence * 100).toFixed(0) + '%)' : '无匹配';
-                        } else if (dbgKnn) {
-                            dbgKnn.textContent = this.signClassifier && this.signClassifier.samples.length > 0 ? '等待手部...' : '无训练数据';
-                        }
-                        // 显示动态手势识别结果
-                        const dbgDyn = $('#dbg-dynamic');
-                        if (dbgDyn && this.dynamicRecognizer && this.dynamicRecognizer.isReady && results.landmarks && results.landmarks.length > 0) {
-                            const dynResult = this.dynamicRecognizer.processFrame(results.landmarks);
-                            dbgDyn.textContent = dynResult ? dynResult.label + '(' + (dynResult.confidence * 100).toFixed(0) + '%)' : '识别中...';
-                        } else if (dbgDyn) {
-                            dbgDyn.textContent = this.dynamicRecognizer && this.dynamicRecognizer.isReady ? '等待手部...' : '未初始化';
-                        }
-                    }
                 } catch (e) {
                     _consecutiveErrors++;
                     // 时间戳错误时重置基准
@@ -371,8 +329,7 @@ export const deafMethods = {
                     gestureRecognized.style.animation = 'fadeInUp 0.15s ease-out';
                 }
                 this._deafAddToHistory(chineseName);
-                // 实时语音输出
-                this.speech.speak(chineseName);
+                // 不自动播报，等待用户手动点击朗读按钮
                 if (navigator.vibrate) navigator.vibrate(50);
                 // 手语句子组合
                 this._processSignLanguageResult(chineseName, score);
@@ -533,15 +490,14 @@ export const deafMethods = {
                 sentenceEl.style.animation = 'fadeInUp 0.15s ease-out';
             }
 
-            // 2秒无新输入则自动朗读整句并清空
+            // 8秒无新输入则自动清空句子（给用户足够时间组合手语）
             clearTimeout(this._signSentenceTimeout);
             this._signSentenceTimeout = setTimeout(() => {
                 if (this._signSentence) {
-                    this.speech.speak(this._signSentence);
                     this._signSentence = '';
                     if (sentenceEl) sentenceEl.textContent = '等待手语输入...';
                 }
-            }, 2000);
+            }, 8000);
         }
     },
 
