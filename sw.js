@@ -1,8 +1,8 @@
 // Hello AI Service Worker v2.0
 // 策略：Network First（HTML）+ Cache First（MediaPipe）+ Stale While Revalidate（其他静态资源）
 
-const CACHE_NAME = 'hello-ai-v4';
-const RUNTIME_CACHE = 'hello-ai-runtime-v4';
+const CACHE_NAME = 'hello-ai-v7';
+const RUNTIME_CACHE = 'hello-ai-runtime-v7';
 
 // 预缓存：核心资源（小文件）
 const PRECACHE_URLS = [
@@ -14,10 +14,14 @@ const PRECACHE_URLS = [
   './js/managers/settings.js',
   './js/managers/speech.js',
   './js/managers/camera.js',
+  './js/managers/auth.js',
   './js/utils/dom.js',
   './js/utils/feature-extractor.js',
   './js/utils/gesture-recognizer.js',
   './js/utils/sign-classifier.js',
+  './js/utils/api-client.js',
+  './js/utils/data-adapter.js',
+  './js/data/preset-sign-data.js',
   './js/modules/deaf.js',
   './js/modules/blind.js',
   './js/modules/cognitive.js',
@@ -56,6 +60,13 @@ self.addEventListener('activate', event => {
     )
   );
   self.clients.claim();
+});
+
+// 收到 SKIP_WAITING 消息时立即激活
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // 请求拦截
@@ -101,7 +112,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 其他静态资源（CSS/JS/图片）：Stale While Revalidate
+  // JS 文件：Network First（确保部署后立即生效）
+  if (event.request.url.endsWith('.js') || event.request.url.endsWith('.mjs')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(RUNTIME_CACHE).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // 其他静态资源（CSS/图片）：Stale While Revalidate
   event.respondWith(
     caches.match(event.request).then(cached => {
       const fetchPromise = fetch(event.request)

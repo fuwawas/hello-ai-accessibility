@@ -253,7 +253,20 @@ class AccessibilityApp {
 
             console.log('[Hello AI] 应用初始化完成');
 
-            // 语音导航由 index.html 的内联脚本处理，无需在此初始化
+            // 播放欢迎语音（首次用户交互后触发，避免移动端自动播放限制）
+            if (this.settings.get('speechEnabled') !== false) {
+                const trySpeak = () => {
+                    this._speakWelcome();
+                    document.removeEventListener('click', trySpeak);
+                    document.removeEventListener('touchstart', trySpeak);
+                };
+                if (this._isMobile) {
+                    document.addEventListener('click', trySpeak, { once: true });
+                    document.addEventListener('touchstart', trySpeak, { once: true });
+                } else {
+                    setTimeout(() => this._speakWelcome(), 500);
+                }
+            }
 
             // 监听内联脚本的 goHome 事件，执行应用状态清理
             window.addEventListener('app:goHome', () => {
@@ -666,8 +679,14 @@ class AccessibilityApp {
             
             init: async (ctx) => {
                 const self = this;
-                ctx.app._showCamera();
-                
+                console.log('[听障模块] init 开始');
+                try {
+                    ctx.app._showCamera();
+                } catch (e) {
+                    console.error('[听障模块] 摄像头启动失败:', e);
+                    ctx.app.toast.show('摄像头启动失败: ' + e.message, 'error', 5000);
+                }
+
                 ctx.app._setModuleHTML(`
                     <div class="module-panel deaf-panel">
                         <p class="module-hint">请将手放在摄像头前方，系统将实时识别您的手势并转换为文字和语音。</p>
@@ -853,8 +872,17 @@ class AccessibilityApp {
             icon: '&#129468;',
             needsCamera: false,
             init: async (ctx) => {
-                ctx.app._physicalStartVoiceControl();
-                
+                // 检查浏览器是否支持语音识别
+                const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SR) {
+                    ctx.app.toast.show('您的浏览器不支持语音识别，请使用 Chrome 或 Edge 浏览器', 'error', 5000);
+                }
+                try {
+                    ctx.app._physicalStartVoiceControl();
+                } catch (e) {
+                    console.error('[肢体模块] 语音控制启动失败:', e);
+                }
+
                 ctx.app._setModuleHTML(`
                     <div class="module-panel physical-panel">
                         <p class="module-hint">语音控制已启用。您可以通过语音命令操作设备，无需使用双手。</p>
@@ -1094,6 +1122,11 @@ class AccessibilityApp {
 
             init: async function(ctx) {
                 var app = ctx.app;
+                // 检查浏览器语音识别支持
+                var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SR) {
+                    app.toast.show('您的浏览器不支持语音识别，请使用 Chrome 或 Edge 浏览器。您仍可以使用手动输入和常用短语功能。', 'warning', 5000);
+                }
                 var phrases = ['你好','谢谢','请帮帮我','我不舒服','请问洗手间在哪','我要喝水','我不明白','请说慢一点','再见','对不起','我需要去医院','请叫救护车','我迷路了','请再说一遍'];
                 var phraseHTML = '';
                 for (var i = 0; i < phrases.length; i++) {
@@ -1125,9 +1158,6 @@ class AccessibilityApp {
                 var pitchSlider = document.getElementById('voice-pitch');
                 var rateVal = document.getElementById('voice-rate-val');
                 var pitchVal = document.getElementById('voice-pitch-val');
-                var recognition = null;
-                var isListening = false;
-
                 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
                 var recognition = null;
                 var isListening = false;
@@ -1509,6 +1539,9 @@ class AccessibilityApp {
         this.settings.set('speechEnabled', enabled);
         this.dom.btnSpeechToggle.classList.toggle('active', enabled);
         this.toast.show(enabled ? '语音播报已开启' : '语音播报已关闭', 'info');
+        if (enabled) {
+            this.speech.speak('语音播报已开启');
+        }
     }
 
     /**
@@ -1549,6 +1582,7 @@ class AccessibilityApp {
      * 初始化 MediaPipe Gesture Recognizer（官方预训练模型）
      */
     async _initGestureRecognizer() {
+        console.log('[手势识别] _initGestureRecognizer 开始调用');
         // 如果模型已存在，验证是否可用
         if (this._gestureRecognizer) {
             try {
@@ -1603,9 +1637,9 @@ class AccessibilityApp {
             if (!loadingCancelled && loadingOverlay.parentNode) {
                 loadingCancelled = true;
                 loadingOverlay.remove();
-                this.toast.show('模型加载超时，请检查网络后重试', 'error', 5000);
+                this.toast.show('模型加载超时，请检查网络后重试。您也可以刷新页面重试。', 'error', 8000);
             }
-        }, 30000);
+        }, 60000);
 
         const updateProgress = (percent, status) => {
             if (loadingCancelled) return;
@@ -1619,35 +1653,46 @@ class AccessibilityApp {
             updateProgress(10, '加载引擎组件...');
             console.log('[手势识别] 开始加载...');
 
-            // 使用本地文件（避免CDN被墙）
+            // 优先 CDN（可靠），本地文件作为备用
             let visionModule;
             let wasmPath;
             let modelPath;
 
             try {
-                const basePath = this._getBasePath();
-                visionModule = await import(basePath + 'libs/mediapipe/vision_bundle.mjs');
-                wasmPath = basePath + 'libs/mediapipe/wasm';
-                modelPath = basePath + 'libs/mediapipe/gesture_recognizer.task';
-                console.log('[手势识别] 使用本地文件:', wasmPath);
-            } catch (localErr) {
-                console.warn('[手势识别] 本地文件加载失败，回退到CDN:', localErr.message);
+                console.log('[手势识别] 尝试从 CDN 加载...');
                 visionModule = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs');
                 wasmPath = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm";
                 modelPath = "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
+                console.log('[手势识别] CDN 加载成功, exports:', Object.keys(visionModule));
+            } catch (cdnErr) {
+                console.warn('[手势识别] CDN 加载失败，尝试本地文件:', cdnErr.message, cdnErr.stack);
+                const importPrefix = this._getImportPrefix();
+                try {
+                    visionModule = await import(importPrefix + 'libs/mediapipe/vision_bundle.mjs');
+                    wasmPath = 'libs/mediapipe/wasm';
+                    modelPath = 'libs/mediapipe/gesture_recognizer.task';
+                    console.log('[手势识别] 使用本地文件');
+                } catch (localErr) {
+                    console.error('[手势识别] 本地文件也加载失败:', localErr.message, localErr.stack);
+                    throw localErr;
+                }
             }
 
             const { FilesetResolver, GestureRecognizer } = visionModule;
+            console.log('[手势识别] FilesetResolver:', typeof FilesetResolver, 'GestureRecognizer:', typeof GestureRecognizer);
 
             if (loadingCancelled) return false;
 
             updateProgress(30, '加载 WASM 引擎...');
+            console.log('[手势识别] 加载 WASM from:', wasmPath);
             const vision = await FilesetResolver.forVisionTasks(wasmPath);
+            console.log('[手势识别] WASM 加载成功');
 
             if (loadingCancelled) return false;
 
             const delegate = this._isMobile ? 'CPU' : 'GPU';
             updateProgress(50, '加载识别模型（' + delegate + '模式）...');
+            console.log('[手势识别] 创建 GestureRecognizer, delegate:', delegate, 'modelPath:', modelPath);
 
             this._gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
                 baseOptions: {
@@ -1674,27 +1719,32 @@ class AccessibilityApp {
             return true;
         } catch (error) {
             if (loadingCancelled) return false;
-            console.error('[手势识别] 初始模式失败:', error);
+            console.error('[手势识别] 初始模式失败:', error.message, error.stack);
             updateProgress(50, '尝试备用模式...');
 
             const fallbackDelegate = this._isMobile ? 'GPU' : 'CPU';
             try {
-                const basePath = this._getBasePath();
                 let visionModule, wasmPath, modelPath;
                 try {
-                    visionModule = await import(basePath + 'libs/mediapipe/vision_bundle.mjs');
-                    wasmPath = basePath + 'libs/mediapipe/wasm';
-                    modelPath = basePath + 'libs/mediapipe/gesture_recognizer.task';
-                } catch (e) {
+                    console.log('[手势识别] 备用模式：尝试 CDN...');
                     visionModule = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs');
                     wasmPath = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm";
                     modelPath = "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
+                    console.log('[手势识别] 备用模式 CDN 成功');
+                } catch (e) {
+                    console.warn('[手势识别] 备用模式 CDN 失败:', e.message);
+                    const importPrefix = this._getImportPrefix();
+                    visionModule = await import(importPrefix + 'libs/mediapipe/vision_bundle.mjs');
+                    wasmPath = 'libs/mediapipe/wasm';
+                    modelPath = 'libs/mediapipe/gesture_recognizer.task';
+                    console.log('[手势识别] 备用模式使用本地文件');
                 }
 
                 if (loadingCancelled) return false;
 
                 const { FilesetResolver, GestureRecognizer } = visionModule;
                 updateProgress(70, '加载备用引擎...');
+                console.log('[手势识别] 备用模式加载 WASM from:', wasmPath);
                 const vision = await FilesetResolver.forVisionTasks(wasmPath);
 
                 if (loadingCancelled) return false;
@@ -1730,15 +1780,19 @@ class AccessibilityApp {
     }
 
     /**
-     * 获取应用基础路径（用于加载本地资源文件）
+     * 获取页面相对路径（用于 MediaPipe 的 wasmPath / modelPath）
+     * 这些路径由 MediaPipe 内部基于页面 URL 解析
      */
     _getBasePath() {
-        const script = document.querySelector('script[src*="app.js"]');
-        if (script) {
-            const src = script.getAttribute('src');
-            return src.substring(0, src.lastIndexOf('/') + 1).replace('/js/', '/');
-        }
-        return './';
+        return '';
+    }
+
+    /**
+     * 获取脚本相对路径前缀（用于动态 import()）
+     * import() 基于当前脚本文件位置解析，app.js 在 js/ 下，需要 ../ 回到根
+     */
+    _getImportPrefix() {
+        return '../';
     }
 
 }
